@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environment
+venv/
+.venv/
+env/
+.env
+
+# Build and Distribution
+build/
+dist/
+*.egg-info/
+*.whl
+
+# IDE / Editor Files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+nosetests.xml
+coverage.xml
+
+# OS-specific
+.DS_Store
+Thumbs.db
+
+# Secrets - Although we use a .env file, this is an extra layer of safety.
+# Never commit files containing sensitive credentials.
+*.env
+*.private
+config.yaml # Users should never commit their personal config
