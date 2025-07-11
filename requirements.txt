@@ -1,31 +1,27 @@
 # -----------------------------------------------------------------------------
-# Compass Project Dependencies
+# Compass Project: Runtime Dependencies
 # -----------------------------------------------------------------------------
-# Use this file to install all dependencies: pip install -r requirements.txt
+# This file lists the essential packages needed to run the Compass application.
+# It is used by setup.py to define the project's core dependencies.
 # -----------------------------------------------------------------------------
 
 # --- Core Application Framework ---
-typer[all]>=0.9.0      # For the Command-Line Interface (CLI)
-pyyaml>=6.0            # For parsing the config.yaml file
-pydantic>=2.5.0        # For robust data validation and settings management
+typer>=0.12.3                   # Powers the command-line interface (e.g., `compass doctor`).
+rich>=13.7.0                    # Creates beautiful, formatted text output in the terminal.
+shellingham>=1.5.0              # A dependency of Typer used to detect the user's shell for autocompletion.
+pyyaml>=6.0                     # Used for safely parsing the `config.yaml` file.
+pydantic>=2.5.0,<3.0.0          # For robust data validation and management of configuration settings.
 
 # --- AI / LLM Providers ---
-openai>=1.12.0         # For OpenAI models (GPT-4o, etc.)
-anthropic>=0.21.0      # For Anthropic models (Claude 3)
-google-generativeai>=0.4.0 # For Google models (Gemini)
+openai>=1.12.0                  # Official client for OpenAI models (GPT-4o, etc.).
+anthropic>=0.21.0               # Official client for Anthropic models (Claude 3).
+google-generativeai>=0.4.0      # Official client for Google models (Gemini).
 
 # --- General Connectors & HTTP Requests ---
-requests>=2.28.0       # The standard for making HTTP API calls for most connectors
+requests>=2.28.0                # The standard library for making HTTP API calls to most services.
 
 # --- Specific Connector Libraries ---
-# You can install these as you build the connectors, but listing them here
-# provides a complete picture of the project's ecosystem.
-
-# Cloud / Infrastructure
-boto3>=1.28.0          # The official AWS SDK for Python
-azure-identity>=1.15.0 # For authenticating with Azure services
-google-api-python-client>=2.90.0 # For various Google Cloud Platform APIs
-kubernetes>=28.1.0     # For interacting with the Kubernetes API
-
-# Note: Other connectors for platforms like PagerDuty, GitLab, Jira, etc.,
-# will use the `requests` library and do not require their own specific SDKs.
+boto3>=1.28.0                   # The official AWS SDK for Python (for the AWS connector).
+azure-identity>=1.15.0,<2.0.0    # Handles authentication for Microsoft Azure services.
+google-api-python-client>=2.90.0 # Client for accessing Google Cloud Platform (GCP) APIs.
+kubernetes>=28.1.0              # Official client for interacting with the Kubernetes API.
