@@ -1,0 +1,58 @@
+# 🧭 Compass Configuration File
+# --------------------------------------------------------------------
+# Copy this file to ~/.compass/config.yaml and fill in your details.
+# Secrets like API keys are loaded from your environment variables for security.
+# Make sure you have set them in your shell (e.g., `export OPENAI_API_KEY=...`).
+# --------------------------------------------------------------------
+
+# --- LLM Provider Configuration ---
+# Choose ONE LLM provider block. This is the AI brain of your agent.
+llm:
+  # --- OpenAI Example ---
+  provider: openai
+  model: "gpt-4o"
+  api_key: "${OPENAI_API_KEY}"
+
+  # --- Anthropic Example (Uncomment to use) ---
+  # provider: anthropic
+  # model: "claude-3-5-sonnet-20240620"
+  # api_key: "${ANTHROPIC_API_KEY}"
+  
+  # --- Google Example (Uncomment to use) ---
+  # provider: google
+  # model: "gemini-1.5-pro"
+  # api_key: "${GOOGLE_API_KEY}"
+
+
+# --- Connections Configuration ---
+# Define all the data sources the agent can query for context.
+# The names (e.g., 'github_main') are custom labels you can reference.
+connections:
+  github_main:
+    # `category` is used internally for validation and does not need to be added here.
+    type: github
+    token: "${GITHUB_TOKEN}"
+    # A default repository to check if one isn't specified in an incident trigger.
+    default_repo: "your-organization/your-main-repository"
+
+  pagerduty_prod:
+    type: pagerduty
+    api_key: "${PAGERDUTY_API_KEY}"
+    # The email address associated with your PagerDuty account/API key.
+    from_email: "your-email@example.com"
+
+  # --- Example for a future Datadog Connector ---
+  # datadog_us1:
+  #   type: datadog
+  #   api_key: "${DD_API_KEY}"
+  #   app_key: "${DD_APP_KEY}"
+  #   site: "datadoghq.com" # Use "datadoghq.eu" for EU region
+
+
+# --- Actions Configuration ---
+# Define all the services the agent can take action on (e.g., sending notifications).
+actions:
+  # The default place to post incident summaries and notifications.
+  slack_oncall_channel:
+    type: slack
+    webhook_url: "${SLACK_WEBHOOK_URL}"
