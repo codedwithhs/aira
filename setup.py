@@ -16,18 +16,19 @@ dev_requirements = [
     "black>=25.1.0",         # The code formatter
     "ruff>=0.12.2",           # The linter
     "pre-commit>=4.2.0",       # For running checks before commits
+    "python-dotenv>=1.1.1",    # Loads environment variables from .env files for local development
 ]
 
 setup(
     # --- Core Metadata ---
     name="incident-compass",
     version="0.1.0",
-    author="Your Name",
-    author_email="your.email@example.com",
+    author="Himanshu Singhal",
+    author_email="singhal425@gmail.com",
     description="The open-source AI agent that automates incident response.",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/your-username/compass",
+    url="https://github.com/codedwithhs/compass",
     license="Apache-2.0",
 
     # --- Package Configuration ---
