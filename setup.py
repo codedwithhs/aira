@@ -34,6 +34,12 @@ setup(
     # --- Package Configuration ---
     packages=find_packages(),
 
+    # Tell setuptools to include non-Python files
+    package_data={
+        # Any file in the 'compass.templates' package will be included
+        "compass.templates": ["*.yaml", "*.json"],
+    },
+
     # Core runtime dependencies
     install_requires=requirements,
 
