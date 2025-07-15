@@ -16,7 +16,7 @@ from compass.config import AnyAction, AnyConnection
 
 
 # The Registry Map: Maps a 'type' string from config to the actual class.
-# We will comment out the entries until the class is imported.
+# We will uncomment the entries as each connector is built.
 CONNECTOR_MAP = {
     # "pagerduty": PagerDutyConnector,
     # "github": GitHubConnector,
@@ -31,6 +31,7 @@ def get_connector(name: str, config: AnyConnection | AnyAction) -> BaseConnector
     connector_class = CONNECTOR_MAP.get(connector_type)
     
     if not connector_class:
-        raise ValueError(f"Unsupported or unimplemented connector type: '{config.type}'.")
+        # CORRECTED ERROR MESSAGE: This is now much clearer.
+        raise ValueError(f"Connector type '{config.type}' is not yet supported by Compass. Please check for spelling or contribute the connector.")
     
     return connector_class(name=name, config=config.model_dump())
