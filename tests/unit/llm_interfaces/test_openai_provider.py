@@ -1,6 +1,8 @@
 import pytest
 import os
 from pydantic import ValidationError
+from unittest.mock import MagicMock
+
 from compass.config import OpenAIConfig
 from compass.llm_interfaces.openai_provider import OpenAIProvider
 
@@ -19,28 +21,19 @@ def valid_openai_config() -> OpenAIConfig:
     )
 
 def test_openai_provider_connection_success(valid_openai_config: OpenAIConfig):
-    """
-    Tests a successful connection to the OpenAI API.
-    This test will be skipped if the OPENAI_API_KEY is not available.
-    """
+    """Tests a successful connection to the OpenAI API."""
     # Action
     provider = OpenAIProvider(config=valid_openai_config.model_dump())
     success, message = provider.test_connection()
 
     # Assert
     assert success is True
-    assert "OpenAI connection successful." in message
+    assert "OpenAI connection successful" in message
 
 def test_openai_provider_connection_failure_bad_key():
-    """
-    Tests that the connection fails gracefully with an invalid API key.
-    """
+    """Tests that the connection fails gracefully with an invalid API key."""
     # Arrange
-    invalid_config = OpenAIConfig(
-        provider="openai",
-        model="gpt-4o",
-        api_key="invalid_key"
-    )
+    invalid_config = OpenAIConfig(provider="openai", model="gpt-4o", api_key="invalid_key")
 
     # Action
     provider = OpenAIProvider(config=invalid_config.model_dump())
@@ -51,16 +44,42 @@ def test_openai_provider_connection_failure_bad_key():
     assert "Invalid API Key" in message
 
 def test_openai_config_validation_failure_missing_key():
-    """
-    Tests that the Pydantic model itself raises an error if api_key is missing.
-    """
+    """Tests that the Pydantic model itself raises an error if api_key is missing."""
     # Arrange
-    invalid_data = {
-        "provider": "openai",
-        "model": "gpt-4o"
-        # api_key is intentionally missing
-    }
+    invalid_data = {"provider": "openai", "model": "gpt-4o"}
 
     # Action & Assert
     with pytest.raises(ValidationError, match="api_key"):
         OpenAIConfig(**invalid_data)
+
+def test_generate_hypothesis_success_mocked(monkeypatch):
+    """
+    Tests the generate_hypothesis method with a mocked OpenAI client.
+    This avoids making real, expensive, and slow API calls during automated testing.
+    """
+    # Arrange
+    # 1. Create a mock object that mimics the structure of an OpenAI response
+    mock_choice = MagicMock()
+    mock_choice.message.content = "This is a test hypothesis."
+    
+    mock_response = MagicMock()
+    mock_response.choices = [mock_choice]
+    
+    # 2. Create a mock for the client's method
+    mock_create = MagicMock(return_value=mock_response)
+    
+    # 3. Use pytest's monkeypatch to replace the real API call with our mock
+    monkeypatch.setattr("openai.resources.chat.completions.Completions.create", mock_create)
+
+    # 4. Set up the provider
+    config = OpenAIConfig(provider="openai", model="gpt-4o", api_key="a_valid_key_for_test")
+    provider = OpenAIProvider(config=config.model_dump())
+
+    # Action
+    hypothesis = provider.generate_hypothesis(context="Some data", system_prompt="A prompt")
+
+    # Assert
+    # 5. Check that our mock method was called correctly
+    mock_create.assert_called_once()
+    # 6. Check that the returned hypothesis matches our mock's content
+    assert hypothesis == "This is a test hypothesis."

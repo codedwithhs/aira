@@ -4,7 +4,7 @@ from openai import OpenAI, AuthenticationError
 from typing import Tuple, Dict, Any
 
 from .base import LLMProvider
-from compass.config import OpenAIConfig # Import the specific Pydantic model
+from compass.config import OpenAIConfig
 
 class OpenAIProvider(LLMProvider):
     """Concrete implementation for OpenAI's Chat-based models."""
