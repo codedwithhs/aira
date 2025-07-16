@@ -49,6 +49,11 @@ class SourceControlProvider(BaseConnector):
         """Fetches and formats recent commits for a given repository."""
         pass
 
+    # As a future enhancement, you would add the method for diffs here
+    # @abstractmethod
+    # def fetch_recent_commit_diffs(self, repo: str, hours: int) -> str:
+    #     pass
+
 
 class ObservabilityProvider(BaseConnector):
     """Contract for observability platforms like Datadog or Prometheus."""

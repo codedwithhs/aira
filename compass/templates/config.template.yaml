@@ -19,6 +19,7 @@ connections:
     type: github
     token: "${GITHUB_TOKEN}"
     default_repo: "your-org/your-main-repository"
+    api_base_url: GITHUB_API_BASE_URL_PLACEHOLDER
 
   pagerduty_prod:
     type: pagerduty

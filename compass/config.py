@@ -2,7 +2,8 @@ import os
 import yaml
 from pathlib import Path
 from pydantic import BaseModel, SecretStr, Field, ValidationError
-from typing import Dict, Union, Literal
+from typing import Dict, Optional, Union, Literal
+from dotenv import load_dotenv
 
 # --- Individual LLM Provider Models ---
 class OpenAIConfig(BaseModel):
@@ -29,6 +30,7 @@ class GitHubConfig(BaseModel):
     type: Literal["github"]
     token: SecretStr
     default_repo: str
+    api_base_url: Optional[str] = "https://api.github.com"
 
 class PagerDutyConfig(BaseModel):
     type: Literal["pagerduty"]
@@ -57,6 +59,12 @@ def load_config(config_path: Path) -> AppConfig:
     """Loads, validates, and returns the application configuration."""
     if not config_path.is_file():
         raise FileNotFoundError(f"Configuration file not found: {config_path}")
+    
+    # Look for a .env file in the same directory as the config file.
+    env_path = config_path.parent / ".env"
+    if env_path.is_file():
+        print(f"📄 Loading environment variables from {env_path}")
+        load_dotenv(dotenv_path=env_path)
         
     with open(config_path, 'r') as f:
         content = os.path.expandvars(f.read())
