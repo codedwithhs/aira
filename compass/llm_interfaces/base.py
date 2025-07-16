@@ -3,6 +3,7 @@
 from abc import ABC, abstractmethod
 from typing import Tuple, Dict, Any
 
+
 class LLMProvider(ABC):
     """
     Abstract Base Class for all LLM providers.

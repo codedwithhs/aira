@@ -11,6 +11,7 @@ PROVIDER_MAP = {
     # "anthropic": AnthropicProvider,
 }
 
+
 def get_llm_provider(config: AnyLLM) -> LLMProvider:
     """
     Factory function to get an instance of an LLM provider.
@@ -30,10 +31,12 @@ def get_llm_provider(config: AnyLLM) -> LLMProvider:
     """
     provider_name = config.provider.lower()
     provider_class = PROVIDER_MAP.get(provider_name)
-    
+
     if not provider_class:
-        raise ValueError(f"Unsupported LLM provider: '{config.provider}'. Supported are: {list(PROVIDER_MAP.keys())}")
-    
+        raise ValueError(
+            f"Unsupported LLM provider: '{config.provider}'. Supported are: {list(PROVIDER_MAP.keys())}"
+        )
+
     # Instantiate the chosen provider, passing the configuration
     # as a dictionary to its constructor.
     return provider_class(config=config.model_dump())

@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Dict, Any, List, Tuple
 
+
 class BaseConnector(ABC):
     """
     Abstract Base Class for all data source and action connectors.
@@ -8,6 +9,7 @@ class BaseConnector(ABC):
     Ensures all connectors have a consistent initialization and a mandatory
     health check method for the 'compass doctor' command.
     """
+
     def __init__(self, name: str, config: Dict[str, Any]):
         """
         Initializes the connector.
@@ -57,7 +59,7 @@ class SourceControlProvider(BaseConnector):
 
 class ObservabilityProvider(BaseConnector):
     """Contract for observability platforms like Datadog or Prometheus."""
-    
+
     @abstractmethod
     def fetch_logs(self, query: str, time_window_minutes: int) -> str:
         """Fetches and formats logs based on a query."""

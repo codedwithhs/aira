@@ -20,15 +20,18 @@ CONNECTOR_MAP = {
     # "slack": SlackConnector,
 }
 
+
 def get_connector(name: str, config: AnyConnection | AnyAction) -> BaseConnector:
     """
     Factory function to get an instance of a connector.
     """
     connector_type = config.type.lower()
     connector_class = CONNECTOR_MAP.get(connector_type)
-    
+
     if not connector_class:
         # CORRECTED ERROR MESSAGE: This is now much clearer.
-        raise ValueError(f"Connector type '{config.type}' is not yet supported by Compass. Please check for spelling or contribute the connector.")
-    
+        raise ValueError(
+            f"Connector type '{config.type}' is not yet supported by Compass. Please check for spelling or contribute the connector."
+        )
+
     return connector_class(name=name, config=config.model_dump())
