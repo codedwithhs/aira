@@ -1,15 +1,12 @@
 # compass/connectors/__init__.py
 
-from typing import Dict, Any
 from .base import BaseConnector
 from compass.config import AnyAction, AnyConnection
+from .source_control import GitHubConnector
 
 # --- Import concrete connector classes as they are built ---
 # TODO: [CMP-7] Uncomment when pagerduty.py is implemented.
 # from .alerting.pagerduty import PagerDutyConnector
-
-# TODO: [CMP-6] Uncomment when github.py is implemented.
-# from .source_control.github import GitHubConnector
 
 # TODO: [CMP-8] Uncomment when slack.py is implemented.
 # from .collaboration.slack import SlackConnector
@@ -19,7 +16,7 @@ from compass.config import AnyAction, AnyConnection
 # We will uncomment the entries as each connector is built.
 CONNECTOR_MAP = {
     # "pagerduty": PagerDutyConnector,
-    # "github": GitHubConnector,
+    "github": GitHubConnector,
     # "slack": SlackConnector,
 }
 

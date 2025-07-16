@@ -32,7 +32,6 @@ class Orchestrator:
         """Initializes all configured connectors via the connector factory."""
         loaded_connectors: Dict[str, BaseConnector] = {}
         all_configs = {**(self.config.connections or {}), **(self.config.actions or {})}
-
         for name, conf in all_configs.items():
             try:
                 loaded_connectors[name] = get_connector(name=name, config=conf)

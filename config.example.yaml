@@ -34,6 +34,8 @@ connections:
     token: "${GITHUB_TOKEN}"
     # A default repository to check if one isn't specified in an incident trigger.
     default_repo: "your-organization/your-main-repository"
+    # GitHub Enterprise Server API URL. Change if it's not default.
+    api_base_url: "https://api.github.com"
 
   pagerduty_prod:
     type: pagerduty
