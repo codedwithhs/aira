@@ -7,6 +7,7 @@ from typing import Tuple, Dict, Any
 from ..base import SourceControlProvider
 from ...config import GitHubConfig
 
+
 class GitHubConnector(SourceControlProvider):
     """
     Connector for interacting with the GitHub REST API.
@@ -32,9 +33,11 @@ class GitHubConnector(SourceControlProvider):
         Validates the GitHub token by making a lightweight API call to the /user endpoint.
         """
         try:
-            response = requests.get(f"{self.api_base_url}/user", headers=self.headers, timeout=10)
-            response.raise_for_status() # Raises an HTTPError for bad responses (4xx or 5xx)
-            user_login = response.json().get('login')
+            response = requests.get(
+                f"{self.api_base_url}/user", headers=self.headers, timeout=10
+            )
+            response.raise_for_status()  # Raises an HTTPError for bad responses (4xx or 5xx)
+            user_login = response.json().get("login")
             return True, f"Successfully connected to GitHub as user '{user_login}'."
         except requests.exceptions.HTTPError as e:
             if e.response.status_code == 401:
@@ -51,17 +54,22 @@ class GitHubConnector(SourceControlProvider):
         since_time = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
         url = f"{self.api_base_url}/repos/{repo}/commits"
         params = {"since": since_time}
-        
+
         try:
-            response = requests.get(url, headers=self.headers, params=params, timeout=15)
+            response = requests.get(
+                url, headers=self.headers, params=params, timeout=15
+            )
             response.raise_for_status()
             commits = response.json()
-            
+
             if not commits:
                 return f"No new commits found in repository '{repo}' in the last {hours} hours."
-            
+
             # Format the output for better readability in prompts and reports
-            summaries = [f"- Commit `{c['sha'][:7]}` by *{c['commit']['author']['name']}*: {c['commit']['message'].splitlines()[0]}" for c in commits]
+            summaries = [
+                f"- Commit `{c['sha'][:7]}` by *{c['commit']['author']['name']}*: {c['commit']['message'].splitlines()[0]}"
+                for c in commits
+            ]
             return "\n".join(summaries)
         except requests.exceptions.HTTPError as e:
             if e.response.status_code == 404:

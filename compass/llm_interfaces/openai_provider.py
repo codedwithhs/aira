@@ -6,6 +6,7 @@ from typing import Tuple, Dict, Any
 from .base import LLMProvider
 from compass.config import OpenAIConfig
 
+
 class OpenAIProvider(LLMProvider):
     """Concrete implementation for OpenAI's Chat-based models."""
 
@@ -27,13 +28,15 @@ class OpenAIProvider(LLMProvider):
 
     def generate_hypothesis(self, context: str, system_prompt: str) -> str:
         """Generates a hypothesis using the OpenAI ChatCompletions endpoint."""
-        print(f"🧠 Generating hypothesis with OpenAI model: {self.validated_config.model}...")
+        print(
+            f"🧠 Generating hypothesis with OpenAI model: {self.validated_config.model}..."
+        )
         try:
             response = self.client.chat.completions.create(
                 model=self.validated_config.model,
                 messages=[
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": context}
+                    {"role": "user", "content": context},
                 ],
                 temperature=0.1,
                 max_tokens=1024,

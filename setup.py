@@ -10,13 +10,13 @@ with open("requirements.txt", "r", encoding="utf-8") as f:
 
 # Define all dependencies for development, including testing, linting, and formatting
 dev_requirements = [
-    "pytest>=8.4.1",         # The test runner
-    "pytest-cov>=6.2.1",       # Generates test coverage reports
-    "requests-mock>=1.12.1",   # For mocking HTTP requests in tests
-    "black>=25.1.0",         # The code formatter
-    "ruff>=0.12.2",           # The linter
-    "pre-commit>=4.2.0",       # For running checks before commits
-    "python-dotenv>=1.1.1",    # Loads environment variables from .env files for local development
+    "pytest>=8.4.1",  # The test runner
+    "pytest-cov>=6.2.1",  # Generates test coverage reports
+    "requests-mock>=1.12.1",  # For mocking HTTP requests in tests
+    "black>=25.1.0",  # The code formatter
+    "ruff>=0.12.2",  # The linter
+    "pre-commit>=4.2.0",  # For running checks before commits
+    "python-dotenv>=1.1.1",  # Loads environment variables from .env files for local development
 ]
 
 setup(
@@ -30,31 +30,25 @@ setup(
     long_description_content_type="text/markdown",
     url="https://github.com/codedwithhs/compass",
     license="Apache-2.0",
-
     # --- Package Configuration ---
     packages=find_packages(),
-
     # Tell setuptools to include non-Python files
     package_data={
         # Any file in the 'compass.templates' package will be included
         "compass.templates": ["*.yaml", "*.json"],
     },
-
     # Core runtime dependencies
     install_requires=requirements,
-
     # Extra dependencies for development. Install with: pip install -e ".[dev]"
     extras_require={
         "dev": dev_requirements,
     },
-
     # This creates the `compass` command-line script
     entry_points={
-        'console_scripts': [
-            'compass = compass.cli:app',
+        "console_scripts": [
+            "compass = compass.cli:app",
         ],
     },
-
     # --- Additional Metadata for PyPI ---
     classifiers=[
         "Development Status :: 3 - Alpha",
@@ -66,5 +60,5 @@ setup(
         "Programming Language :: Python :: 3.12",
         "Operating System :: OS Independent",
     ],
-    python_requires='>=3.10',
+    python_requires=">=3.10",
 )

@@ -6,6 +6,7 @@ from compass.llm_interfaces.base import LLMProvider
 from compass.llm_interfaces import get_llm_provider
 from compass.connectors import get_connector
 
+
 class Orchestrator:
     """The main engine that loads connectors and orchestrates workflows."""
 
@@ -16,10 +17,16 @@ class Orchestrator:
         if any component fails to initialize.
         """
         self.config = config
-        self.llm_provider: Optional[LLMProvider] = self._initialize_llm_provider(health_status)
-        self.connectors: Dict[str, BaseConnector] = self._initialize_connectors(health_status)
+        self.llm_provider: Optional[LLMProvider] = self._initialize_llm_provider(
+            health_status
+        )
+        self.connectors: Dict[str, BaseConnector] = self._initialize_connectors(
+            health_status
+        )
 
-    def _initialize_llm_provider(self, health_status: List[bool]) -> Optional[LLMProvider]:
+    def _initialize_llm_provider(
+        self, health_status: List[bool]
+    ) -> Optional[LLMProvider]:
         """Initializes the configured LLM provider via its factory."""
         try:
             return get_llm_provider(self.config.llm)
@@ -28,7 +35,9 @@ class Orchestrator:
             health_status[0] = False
             return None
 
-    def _initialize_connectors(self, health_status: List[bool]) -> Dict[str, BaseConnector]:
+    def _initialize_connectors(
+        self, health_status: List[bool]
+    ) -> Dict[str, BaseConnector]:
         """Initializes all configured connectors via the connector factory."""
         loaded_connectors: Dict[str, BaseConnector] = {}
         all_configs = {**(self.config.connections or {}), **(self.config.actions or {})}
@@ -38,7 +47,7 @@ class Orchestrator:
             except Exception as e:
                 print(f"❌ {name} ({conf.type}): Failed to initialize: {e}")
                 health_status[0] = False
-                
+
         return loaded_connectors
 
     def run_analysis(self, trigger_data: Dict[str, Any]):
