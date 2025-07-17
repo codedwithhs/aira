@@ -4,9 +4,7 @@ from .base import BaseConnector
 from compass.config import AnyAction, AnyConnection
 from .source_control import GitHubConnector
 from .alerting import PagerDutyConnector
-
-# TODO: [CMP-8] Uncomment when slack.py is implemented.
-# from .collaboration.slack import SlackConnector
+from .collaboration.slack import SlackConnector
 
 
 # The Registry Map: Maps a 'type' string from config to the actual class.
@@ -14,7 +12,7 @@ from .alerting import PagerDutyConnector
 CONNECTOR_MAP = {
     "pagerduty": PagerDutyConnector,
     "github": GitHubConnector,
-    # "slack": SlackConnector,
+    "slack": SlackConnector,
 }
 
 
