@@ -25,6 +25,7 @@ connections:
     type: pagerduty
     api_key: "${PAGERDUTY_API_KEY}"
     from_email: "your-email@example.com"
+    api_base_url: PAGERDUTY_API_BASE_URL_PLACEHOLDER
 
 # --- Actions Configuration ---
 # Define all the services the agent can take action on.

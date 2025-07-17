@@ -41,6 +41,7 @@ class PagerDutyConfig(BaseModel):
     type: Literal["pagerduty"]
     api_key: SecretStr
     from_email: str
+    api_base_url: Optional[str] = "https://api.pagerduty.com"
 
 
 class SlackConfig(BaseModel):

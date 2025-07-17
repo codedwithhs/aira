@@ -3,10 +3,7 @@
 from .base import BaseConnector
 from compass.config import AnyAction, AnyConnection
 from .source_control import GitHubConnector
-
-# --- Import concrete connector classes as they are built ---
-# TODO: [CMP-7] Uncomment when pagerduty.py is implemented.
-# from .alerting.pagerduty import PagerDutyConnector
+from .alerting import PagerDutyConnector
 
 # TODO: [CMP-8] Uncomment when slack.py is implemented.
 # from .collaboration.slack import SlackConnector
@@ -15,7 +12,7 @@ from .source_control import GitHubConnector
 # The Registry Map: Maps a 'type' string from config to the actual class.
 # We will uncomment the entries as each connector is built.
 CONNECTOR_MAP = {
-    # "pagerduty": PagerDutyConnector,
+    "pagerduty": PagerDutyConnector,
     "github": GitHubConnector,
     # "slack": SlackConnector,
 }
