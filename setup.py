@@ -17,6 +17,7 @@ dev_requirements = [
     "ruff>=0.12.2",  # The linter
     "pre-commit>=4.2.0",  # For running checks before commits
     "python-dotenv>=1.1.1",  # Loads environment variables from .env files for local development
+    "pytest-dotenv>=0.5.2", # Automatically loads environment variables from .env files during pytest runs
 ]
 
 setup(

@@ -16,7 +16,6 @@ dist/
 *.whl
 
 # IDE / Editor Files
-.vscode/
 .idea/
 *.swp
 *.swo
