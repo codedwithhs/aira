@@ -1,4 +1,4 @@
-# compass/connectors/source_control/github.py
+# aira/connectors/source_control/github.py
 
 import requests
 from datetime import datetime, timedelta, timezone

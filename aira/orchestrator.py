@@ -1,10 +1,10 @@
 from typing import Dict, Any, Optional, List
 
-from compass.config import AppConfig
-from compass.connectors.base import BaseConnector
-from compass.llm_interfaces.base import LLMProvider
-from compass.llm_interfaces import get_llm_provider
-from compass.connectors import get_connector
+from aira.config import AppConfig
+from aira.connectors.base import BaseConnector
+from aira.llm_interfaces.base import LLMProvider
+from aira.llm_interfaces import get_llm_provider
+from aira.connectors import get_connector
 
 
 class Orchestrator:

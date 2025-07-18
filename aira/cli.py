@@ -7,13 +7,13 @@ import importlib.resources
 
 # --- Main Application Objects & Constants ---
 app = typer.Typer(
-    name="compass",
+    name="aira",
     help="🧭 The open-source AI agent that automates incident response.",
     add_completion=False,
     rich_markup_mode="markdown",
 )
 console = Console()
-CONFIG_DIR = Path.home() / ".compass"
+CONFIG_DIR = Path.home() / ".aira"
 DEFAULT_CONFIG_PATH = CONFIG_DIR / "config.yaml"
 
 # This is a reusable Typer Option for commands that READ an existing config.
@@ -21,16 +21,16 @@ ConfigReadOption = typer.Option(
     DEFAULT_CONFIG_PATH,
     "--config",
     "-c",
-    help="Path to the Compass config file.",
+    help="Path to the Aira config file.",
 )
 
 # Load prompt configurations from dedicated template files at startup
 try:
     SECRET_PROMPTS = json.loads(
-        importlib.resources.read_text("compass.templates", "secret_prompts.json")
+        importlib.resources.read_text("aira.templates", "secret_prompts.json")
     )
     NON_SECRET_PROMPTS = json.loads(
-        importlib.resources.read_text("compass.templates", "non_secret_prompts.json")
+        importlib.resources.read_text("aira.templates", "non_secret_prompts.json")
     )
 except Exception as e:
     console.print(
@@ -55,10 +55,10 @@ def init(
     ),
 ):
     """
-    Creates new Compass configuration files with an interactive setup wizard.
+    Creates new Aira configuration files with an interactive setup wizard.
     """
     console.print(
-        "👋 Welcome to [bold cyan]Compass[/bold cyan]! Let's get you set up.",
+        "👋 Welcome to [bold cyan]Aira[/bold cyan]! Let's get you set up.",
         justify="center",
     )
 
@@ -100,7 +100,7 @@ def init(
     # --- Step 3: Generate the Final config.yaml ---
     try:
         template_content = importlib.resources.read_text(
-            "compass.templates", "config.template.yaml"
+            "aira.templates", "config.template.yaml"
         )
         for placeholder, value in replacements.items():
             template_content = template_content.replace(str(placeholder), str(value))
@@ -117,7 +117,7 @@ def init(
         f"\n✅ [bold green]Success![/bold green] Your fully configured files have been created in {output_dir}"
     )
     console.print(
-        f"\nNext, run [bold cyan]compass doctor -c {config_file_path}[/bold cyan] to test your connections!"
+        f"\nNext, run [bold cyan]aira doctor -c {config_file_path}[/bold cyan] to test your connections!"
     )
 
 
@@ -134,12 +134,10 @@ def doctor(
     """
     Checks the configuration and validates all configured connections.
     """
-    from compass.config import load_config
-    from compass.orchestrator import Orchestrator
+    from aira.config import load_config
+    from aira.orchestrator import Orchestrator
 
-    console.print(
-        "🩺 Running [bold cyan]Compass Doctor[/bold cyan]...", justify="center"
-    )
+    console.print("🩺 Running [bold cyan]Aira Doctor[/bold cyan]...", justify="center")
     health_status = [True]
 
     try:

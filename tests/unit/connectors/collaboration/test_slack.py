@@ -1,7 +1,7 @@
 import pytest
 import typer
 from pydantic import ValidationError
-from compass.connectors.collaboration.slack import SlackConnector
+from aira.connectors.collaboration.slack import SlackConnector
 
 
 @pytest.fixture

@@ -3,8 +3,8 @@ import os
 from pydantic import ValidationError
 from unittest.mock import MagicMock
 
-from compass.config import OpenAIConfig
-from compass.llm_interfaces.openai_provider import OpenAIProvider
+from aira.config import OpenAIConfig
+from aira.llm_interfaces.openai_provider import OpenAIProvider
 
 
 # Pytest fixture to create a valid config object for tests

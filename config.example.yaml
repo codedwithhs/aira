@@ -1,6 +1,6 @@
-# 🧭 Compass Configuration File
+# 🧭 Aira Configuration File
 # --------------------------------------------------------------------
-# Copy this file to ~/.compass/config.yaml and fill in your details.
+# Copy this file to ~/.aira/config.yaml and fill in your details.
 # Secrets like API keys are loaded from your environment variables for security.
 # Make sure you have set them in your shell (e.g., `export OPENAI_API_KEY=...`).
 # --------------------------------------------------------------------

@@ -2,7 +2,7 @@
 
 import pytest
 from pydantic import ValidationError
-from compass.connectors.source_control.github import GitHubConnector
+from aira.connectors.source_control.github import GitHubConnector
 
 
 @pytest.fixture

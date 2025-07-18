@@ -1,7 +1,7 @@
 import pytest
 import yaml
 from pathlib import Path
-from compass.config import load_config, AppConfig, OpenAIConfig
+from aira.config import load_config, AppConfig, OpenAIConfig
 
 
 @pytest.fixture

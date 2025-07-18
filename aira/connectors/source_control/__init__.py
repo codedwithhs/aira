@@ -1,4 +1,4 @@
-# compass/connectors/source_control/__init__.py
+# aira/connectors/source_control/__init__.py
 
 from .github import GitHubConnector
 

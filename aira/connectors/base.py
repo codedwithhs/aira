@@ -7,7 +7,7 @@ class BaseConnector(ABC):
     Abstract Base Class for all data source and action connectors.
 
     Ensures all connectors have a consistent initialization and a mandatory
-    health check method for the 'compass doctor' command.
+    health check method for the 'aira doctor' command.
     """
 
     def __init__(self, name: str, config: Dict[str, Any]):
@@ -26,7 +26,7 @@ class BaseConnector(ABC):
     def test_connection(self) -> Tuple[bool, str]:
         """
         Performs a live test to validate the connector's configuration and connectivity.
-        This is essential for the 'compass doctor' command.
+        This is essential for the 'aira doctor' command.
 
         Returns:
             Tuple[bool, str]: A tuple containing a success boolean and a status message.

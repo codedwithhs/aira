@@ -40,7 +40,7 @@ class SlackConnector(CollaborationProvider):
             )
 
         test_payload = {
-            "text": f"✅ Compass: Connection test for '{self.name}' successful."
+            "text": f"✅ Aira: Connection test for '{self.name}' successful."
         }
 
         try:
