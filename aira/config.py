@@ -44,13 +44,20 @@ class PagerDutyConfig(BaseModel):
     api_base_url: Optional[str] = "https://api.pagerduty.com"
 
 
+class JSMConfig(BaseModel):
+    type: Literal["jsm"]
+    instance_url: str
+    user_email: str
+    api_token: SecretStr
+
+
 class SlackConfig(BaseModel):
     type: Literal["slack"]
     webhook_url: SecretStr
 
 
 # Discriminated Unions for Connectors and Actions
-AnyConnection = Union[GitHubConfig, PagerDutyConfig]
+AnyConnection = Union[GitHubConfig, PagerDutyConfig, JSMConfig]
 AnyAction = Union[SlackConfig]
 
 

@@ -4,6 +4,7 @@ from .base import BaseConnector
 from aira.config import AnyAction, AnyConnection
 from .source_control import GitHubConnector
 from .alerting import PagerDutyConnector
+from .alerting import JSMConnector
 from .collaboration.slack import SlackConnector
 
 
@@ -11,6 +12,7 @@ from .collaboration.slack import SlackConnector
 # We will uncomment the entries as each connector is built.
 CONNECTOR_MAP = {
     "pagerduty": PagerDutyConnector,
+    "jsm": JSMConnector,
     "github": GitHubConnector,
     "slack": SlackConnector,
 }

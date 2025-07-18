@@ -43,6 +43,12 @@ connections:
     # The email address associated with your PagerDuty account/API key.
     from_email: "your-email@example.com"
 
+  jsm_prod:
+    type: jsm
+    instance_url: https://your-company.atlassian.net
+    user_email: jira-user@example.com
+    api_token: "${JSM_API_TOKEN}"
+
   # --- Example for a future Datadog Connector ---
   # datadog_us1:
   #   type: datadog
