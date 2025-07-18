@@ -1,6 +1,6 @@
-# compass/llm_interfaces/__init__.py
+# aira/llm_interfaces/__init__.py
 
-from compass.config import AnyLLM  # Import the Union of all LLM Pydantic models
+from aira.config import AnyLLM  # Import the Union of all LLM Pydantic models
 from .base import LLMProvider
 from .openai_provider import OpenAIProvider
 # from .anthropic_provider import AnthropicProvider # Import future providers here

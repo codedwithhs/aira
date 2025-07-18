@@ -1,12 +1,12 @@
 # -----------------------------------------------------------------------------
-# Compass Project: Runtime Dependencies
+# Aira Project: Runtime Dependencies
 # -----------------------------------------------------------------------------
-# This file lists the essential packages needed to run the Compass application.
+# This file lists the essential packages needed to run the Aira application.
 # It is used by setup.py to define the project's core dependencies.
 # -----------------------------------------------------------------------------
 
 # --- Core Application Framework ---
-typer>=0.12.3                   # Powers the command-line interface (e.g., `compass doctor`).
+typer>=0.12.3                   # Powers the command-line interface (e.g., `aira doctor`).
 rich>=13.7.0                    # Creates beautiful, formatted text output in the terminal.
 shellingham>=1.5.0              # A dependency of Typer used to detect the user's shell for autocompletion.
 pyyaml>=6.0                     # Used for safely parsing the `config.yaml` file.

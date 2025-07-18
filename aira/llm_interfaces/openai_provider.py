@@ -1,10 +1,10 @@
-# compass/llm_interfaces/openai_provider.py
+# aira/llm_interfaces/openai_provider.py
 
 from openai import OpenAI, AuthenticationError
 from typing import Tuple, Dict, Any
 
 from .base import LLMProvider
-from compass.config import OpenAIConfig
+from aira.config import OpenAIConfig
 
 
 class OpenAIProvider(LLMProvider):

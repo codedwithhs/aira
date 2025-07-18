@@ -1,6 +1,6 @@
 import pytest
 from pydantic import ValidationError
-from compass.connectors.alerting.pagerduty import PagerDutyConnector
+from aira.connectors.alerting.pagerduty import PagerDutyConnector
 
 
 @pytest.fixture

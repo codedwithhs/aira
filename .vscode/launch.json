@@ -2,10 +2,10 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Compass: Debug `doctor`",
+      "name": "Aira: Debug `doctor`",
       "type": "debugpy",
       "request": "launch",
-      "module": "compass.cli",
+      "module": "aira.cli",
       "args": [
         "doctor"
       ],
@@ -13,10 +13,10 @@
       "justMyCode": true
     },
     {
-        "name": "Compass: Debug `analyze`",
+        "name": "Aira: Debug `analyze`",
         "type": "debugpy",
         "request": "launch",
-        "module": "compass.cli",
+        "module": "aira.cli",
         "args": [
             "analyze",
             "path/to/your/event.yaml" // You can set a default event file for debugging

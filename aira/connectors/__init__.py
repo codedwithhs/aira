@@ -1,7 +1,7 @@
-# compass/connectors/__init__.py
+# aira/connectors/__init__.py
 
 from .base import BaseConnector
-from compass.config import AnyAction, AnyConnection
+from aira.config import AnyAction, AnyConnection
 from .source_control import GitHubConnector
 from .alerting import PagerDutyConnector
 from .collaboration.slack import SlackConnector
@@ -26,7 +26,7 @@ def get_connector(name: str, config: AnyConnection | AnyAction) -> BaseConnector
     if not connector_class:
         # CORRECTED ERROR MESSAGE: This is now much clearer.
         raise ValueError(
-            f"Connector type '{config.type}' is not yet supported by Compass. Please check for spelling or contribute the connector."
+            f"Connector type '{config.type}' is not yet supported by Aira. Please check for spelling or contribute the connector."
         )
 
     return connector_class(name=name, config=config.model_dump())

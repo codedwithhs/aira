@@ -1,35 +1,24 @@
 {
-    // --- Python Interpreter Settings ---
-    // Automatically use the Python interpreter from the project's virtual environment.
     "python.defaultInterpreterPath": "${workspaceFolder}/venv/bin/python",
     "python.terminal.activateEnvironment": true,
 
-    // --- Testing Settings (Pytest) ---
-    // Enable pytest as the test framework and disable the default unittest.
     "python.testing.unittestEnabled": false,
     "python.testing.pytestEnabled": true,
-    // Specify the directory where tests are located.
+
     "python.testing.pytestArgs": [
         "tests"
     ],
-    // Explicitly point to the pytest executable inside your venv to find plugins.
+
     "python.testing.pytestPath": "${workspaceFolder}/venv/bin/pytest",
 
-    // --- Formatter & Linter Settings (Ruff) ---
-    // Apply these settings specifically to Python files.
     "[python]": {
-        // Set Ruff as the default formatter for Python files.
         "editor.defaultFormatter": "charliermarsh.ruff",
-        // Automatically format the code every time you save a file.
         "editor.formatOnSave": true,
-        // Automatically fix linting errors on save.
         "editor.codeActionsOnSave": {
             "source.fixAll": "explicit"
         }
     },
 
-    // --- File Explorer Settings ---
-    // Hide common clutter from the file explorer view.
     "files.exclude": {
         "**/.git": true,
         "**/.DS_Store": true,

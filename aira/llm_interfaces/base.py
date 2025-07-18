@@ -1,4 +1,4 @@
-# compass/llm_interface/base.py
+# aira/llm_interface/base.py
 
 from abc import ABC, abstractmethod
 from typing import Tuple, Dict, Any

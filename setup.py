@@ -17,26 +17,26 @@ dev_requirements = [
     "ruff>=0.12.2",  # The linter
     "pre-commit>=4.2.0",  # For running checks before commits
     "python-dotenv>=1.1.1",  # Loads environment variables from .env files for local development
-    "pytest-dotenv>=0.5.2", # Automatically loads environment variables from .env files during pytest runs
+    "pytest-dotenv>=0.5.2",  # Automatically loads environment variables from .env files during pytest runs
 ]
 
 setup(
     # --- Core Metadata ---
-    name="incident-compass",
+    name="incident-aira",
     version="0.1.0",
     author="Himanshu Singhal",
     author_email="singhal425@gmail.com",
     description="The open-source AI agent that automates incident response.",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/codedwithhs/compass",
+    url="https://github.com/codedwithhs/aira",
     license="Apache-2.0",
     # --- Package Configuration ---
     packages=find_packages(),
     # Tell setuptools to include non-Python files
     package_data={
-        # Any file in the 'compass.templates' package will be included
-        "compass.templates": ["*.yaml", "*.json"],
+        # Any file in the 'aira.templates' package will be included
+        "aira.templates": ["*.yaml", "*.json"],
     },
     # Core runtime dependencies
     install_requires=requirements,
@@ -44,10 +44,10 @@ setup(
     extras_require={
         "dev": dev_requirements,
     },
-    # This creates the `compass` command-line script
+    # This creates the `aira` command-line script
     entry_points={
         "console_scripts": [
-            "compass = compass.cli:app",
+            "aira = aira.cli:app",
         ],
     },
     # --- Additional Metadata for PyPI ---
