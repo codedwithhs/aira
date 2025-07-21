@@ -51,13 +51,21 @@ class JSMConfig(BaseModel):
     api_token: SecretStr
 
 
+class DatadogConfig(BaseModel):
+    type: Literal["datadog"]
+    api_key: SecretStr
+    app_key: SecretStr
+    # Datadog site URL varies by region (e.g., datadoghq.com, datadoghq.eu)
+    site: Optional[str] = "datadoghq.com"
+
+
 class SlackConfig(BaseModel):
     type: Literal["slack"]
     webhook_url: SecretStr
 
 
 # Discriminated Unions for Connectors and Actions
-AnyConnection = Union[GitHubConfig, PagerDutyConfig, JSMConfig]
+AnyConnection = Union[GitHubConfig, PagerDutyConfig, JSMConfig, DatadogConfig]
 AnyAction = Union[SlackConfig]
 
 

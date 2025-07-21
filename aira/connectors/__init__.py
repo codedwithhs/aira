@@ -5,7 +5,8 @@ from aira.config import AnyAction, AnyConnection
 from .source_control import GitHubConnector
 from .alerting import PagerDutyConnector
 from .alerting import JSMConnector
-from .collaboration.slack import SlackConnector
+from .collaboration import SlackConnector
+from .observability import DatadogConnector
 
 
 # The Registry Map: Maps a 'type' string from config to the actual class.
@@ -15,6 +16,7 @@ CONNECTOR_MAP = {
     "jsm": JSMConnector,
     "github": GitHubConnector,
     "slack": SlackConnector,
+    "datadog": DatadogConnector,
 }
 
 
