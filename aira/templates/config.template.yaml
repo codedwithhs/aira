@@ -33,6 +33,12 @@ connections:
     user_email: jira-user@example.com
     api_token: "${JSM_API_TOKEN}"
 
+  datadog_us1:
+    type: datadog
+    api_key: "${DD_API_KEY}"
+    app_key: "${DD_APP_KEY}"
+    site: DD_SITE_URL_PLACEHOLDER # Use "datadoghq.eu" for EU region
+
 # --- Actions Configuration ---
 # Define all the services the agent can take action on.
 actions:

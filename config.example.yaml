@@ -49,12 +49,11 @@ connections:
     user_email: jira-user@example.com
     api_token: "${JSM_API_TOKEN}"
 
-  # --- Example for a future Datadog Connector ---
-  # datadog_us1:
-  #   type: datadog
-  #   api_key: "${DD_API_KEY}"
-  #   app_key: "${DD_APP_KEY}"
-  #   site: "datadoghq.com" # Use "datadoghq.eu" for EU region
+  datadog_us1:
+    type: datadog
+    api_key: "${DD_API_KEY}"
+    app_key: "${DD_APP_KEY}"
+    site: "datadoghq.com" # Use "datadoghq.eu" for EU region
 
 
 # --- Actions Configuration ---
