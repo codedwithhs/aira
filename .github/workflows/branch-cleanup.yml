@@ -1,0 +1,72 @@
+name: Branch Cleanup
+
+on:
+  pull_request:
+    types: [closed]
+  schedule:
+    - cron: '0 2 * * 0'  # Weekly cleanup on Sundays at 2 AM
+
+jobs:
+  cleanup-merged-branches:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.merged == true
+    steps:
+      - name: Delete merged branch
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const branchName = context.payload.pull_request.head.ref;
+            const isFromFork = context.payload.pull_request.head.repo.fork;
+            
+            // Only delete branches from main repo, not forks
+            if (!isFromFork && !branchName.includes('main') && !branchName.includes('master')) {
+              try {
+                await github.rest.git.deleteRef({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  ref: `heads/${branchName}`
+                });
+                console.log(`✅ Deleted merged branch: ${branchName}`);
+              } catch (error) {
+                console.log(`❌ Failed to delete branch ${branchName}: ${error.message}`);
+              }
+            }
+
+  cleanup-stale-branches:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          
+      - name: Cleanup stale branches
+        run: |
+          # Get branches older than 30 days with no recent activity
+          CUTOFF_DATE=$(date -d '30 days ago' +%s)
+          
+          git for-each-ref --format='%(refname:short) %(committerdate:unix)' refs/remotes/origin/ |
+          while read branch timestamp; do
+            branch_name=${branch#origin/}
+            
+            # Skip protected branches
+            if [[ "$branch_name" == "main" || "$branch_name" == "master" || "$branch_name" =~ ^release/ ]]; then
+              continue
+            fi
+            
+            if [ "$timestamp" -lt "$CUTOFF_DATE" ]; then
+              echo "🗑️ Stale branch found: $branch_name (last activity: $(date -d @$timestamp))"
+              
+              # Check if branch has open PR
+              PR_COUNT=$(gh pr list --head "$branch_name" --json number --jq length)
+              
+              if [ "$PR_COUNT" -eq 0 ]; then
+                echo "Deleting stale branch: $branch_name"
+                git push origin --delete "$branch_name" || echo "Failed to delete $branch_name"
+              else
+                echo "Branch $branch_name has open PR, skipping deletion"
+              fi
+            fi
+          done
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
