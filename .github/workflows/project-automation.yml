@@ -2,88 +2,62 @@ name: Project Board Automation
 
 on:
   issues:
-    types: [opened, closed, assigned, labeled]
+    types: [opened, closed, assigned]
   pull_request:
-    types: [opened, closed, merged, converted_to_draft, ready_for_review]
-  pull_request_review:
-    types: [submitted, dismissed]
+    types: [opened, closed, ready_for_review]
 
 jobs:
   update-project:
     runs-on: ubuntu-latest
     steps:
-      - name: Update project board
+      - name: Auto-move items
         uses: actions/github-script@v6
         with:
-          github-token: ${{ secrets.PAT_TOKEN }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const projectId = 'PVT_kwDOBkFKds4AH3d2'; // Replace with your project ID
+            // This is a simplified version - you'll need to adapt based on your project board setup
+            console.log('Event:', context.eventName);
+            console.log('Action:', context.payload.action);
             
-            // Handle issue events
             if (context.eventName === 'issues') {
+              const action = context.payload.action;
               const issue = context.payload.issue;
-              const action = context.payload.action;
               
               if (action === 'opened') {
-                // Add new issues to "Todo" column
-                await addToProject(issue.node_id, 'Todo');
+                console.log(`📝 New issue #${issue.number} - would move to Todo`);
               } else if (action === 'assigned') {
-                // Move assigned issues to "In Progress"
-                await moveInProject(issue.node_id, 'In Progress');
+                console.log(`👤 Issue #${issue.number} assigned - would move to In Progress`);
               } else if (action === 'closed') {
-                // Move closed issues to "Done"
-                await moveInProject(issue.node_id, 'Done');
+                console.log(`✅ Issue #${issue.number} closed - would move to Done`);
               }
             }
             
-            // Handle PR events
             if (context.eventName === 'pull_request') {
-              const pr = context.payload.pull_request;
               const action = context.payload.action;
+              const pr = context.payload.pull_request;
               
-              if (action === 'opened') {
-                await addToProject(pr.node_id, 'In Review');
-              } else if (action === 'converted_to_draft') {
-                await moveInProject(pr.node_id, 'In Progress');
-              } else if (action === 'ready_for_review') {
-                await moveInProject(pr.node_id, 'In Review');
+              if (action === 'opened' || action === 'ready_for_review') {
+                console.log(`🔍 PR #${pr.number} ready for review - would move to In Review`);
               } else if (action === 'closed' && pr.merged) {
-                await moveInProject(pr.node_id, 'Done');
-                // Also close linked issues
-                await closeLinkedIssues(pr);
-              }
-            }
-            
-            async function addToProject(itemId, columnName) {
-              // Implementation for adding items to project
-              console.log(`Adding ${itemId} to ${columnName}`);
-            }
-            
-            async function moveInProject(itemId, columnName) {
-              // Implementation for moving items in project
-              console.log(`Moving ${itemId} to ${columnName}`);
-            }
-            
-            async function closeLinkedIssues(pr) {
-              const body = pr.body || '';
-              const title = pr.title || '';
-              const text = body + ' ' + title;
-              
-              const issuePattern = /(?:closes|fixes|resolves)\s+#(\d+)/gi;
-              let match;
-              
-              while ((match = issuePattern.exec(text)) !== null) {
-                const issueNumber = parseInt(match[1]);
-                try {
-                  await github.rest.issues.update({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    issue_number: issueNumber,
-                    state: 'closed'
-                  });
-                  console.log(`Closed issue #${issueNumber}`);
-                } catch (error) {
-                  console.log(`Failed to close issue #${issueNumber}: ${error.message}`);
+                console.log(`🎉 PR #${pr.number} merged - would move to Done`);
+                
+                // Auto-close linked issues
+                const body = pr.body || '';
+                const issueNumbers = [...body.matchAll(/(?:closes|fixes|resolves)\s+#(\d+)/gi)]
+                  .map(match => parseInt(match[1]));
+                
+                for (const issueNumber of issueNumbers) {
+                  try {
+                    await github.rest.issues.update({
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      issue_number: issueNumber,
+                      state: 'closed'
+                    });
+                    console.log(`✅ Auto-closed issue #${issueNumber}`);
+                  } catch (error) {
+                    console.log(`❌ Failed to close issue #${issueNumber}`);
+                  }
                 }
               }
             }
