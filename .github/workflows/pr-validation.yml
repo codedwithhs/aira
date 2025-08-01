@@ -50,60 +50,74 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.11]  # Start with just one version to speed up testing
+    
     steps:
       - uses: actions/checkout@v4
       
-      - name: Set up Python
+      - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: ${{ matrix.python-version }}
           
-      - name: Basic validation
+      - name: Cache pip dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt', '**/setup.py') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+            
+      - name: Install dependencies and package
         run: |
-          echo "🔍 Basic project validation..."
-          python --version
-          echo "✅ Python is working"
+          echo "🔧 Installing dependencies..."
+          python -m pip install --upgrade pip
           
-          # Count Python files
-          PY_COUNT=$(find . -name "*.py" -type f | wc -l)
-          echo "📁 Found $PY_COUNT Python files"
+          # Install the package in development mode with all dependencies
+          pip install -e ".[dev]"
           
-          # Test basic Python functionality
-          python -c "import sys; print(f'Python version: {sys.version}'); print('✅ Basic Python test passed')"
+          echo "📦 Installed packages:"
+          pip list | grep -E "(aira|pydantic|typer|yaml|pytest)"
           
-          # Check if tests directory exists
-          if [ -d "tests" ]; then
-            echo "📂 Tests directory found"
-            TEST_FILES=$(find tests -name "*.py" -type f | wc -l)
-            echo "🧪 Found $TEST_FILES test files"
-            if [ "$TEST_FILES" -gt 0 ]; then
-              pip install pytest
-              pytest tests/ -v || echo "⚠️ Some tests failed but continuing..."
-            fi
-          else
-            echo "ℹ️ No tests directory found - skipping test run"
-          fi
+      - name: Run tests
+        run: |
+          echo "🧪 Running tests..."
           
-          echo "✅ Validation completed successfully"
+          # Check that the package can be imported
+          python -c "import aira; print('✅ AIRA package imports successfully')"
+          python -c "import pydantic; print('✅ Pydantic available')"
+          python -c "import typer; print('✅ Typer available')"
+          python -c "import yaml; print('✅ PyYAML available')"
+          
+          # Run the tests
+          pytest tests/ -v --tb=short
+          
+      - name: Run basic CLI test
+        run: |
+          echo "🔍 Testing CLI functionality..."
+          python -m aira.cli --help
+          echo "✅ CLI help command works"
 
   security-check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       
-      - name: Basic security scan
+      - name: Run basic security checks
         run: |
           echo "🔍 Basic security checks..."
           
           # Check for potential secrets (simple grep)
           echo "Checking for potential hardcoded secrets..."
-          if grep -r -i "password\s*=" . --include="*.py" --include="*.js" --exclude-dir=".git" | head -3; then
+          if grep -r -i "password\s*=" . --include="*.py" --include="*.js" --include="*.yaml" --include="*.yml" --exclude-dir=".git" | head -3; then
             echo "⚠️ Found potential hardcoded passwords (review needed)"
           else
             echo "✅ No obvious hardcoded passwords found"
           fi
           
-          if grep -r -i "api[_-]key\s*=" . --include="*.py" --include="*.js" --exclude-dir=".git" | head -3; then
+          if grep -r -i "api[_-]key\s*=" . --include="*.py" --include="*.js" --include="*.yaml" --include="*.yml" --exclude-dir=".git" | head -3; then
             echo "⚠️ Found potential hardcoded API keys (review needed)"
           else
             echo "✅ No obvious hardcoded API keys found"
