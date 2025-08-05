@@ -10,9 +10,12 @@ jobs:
   cleanup-merged-branches:
     runs-on: ubuntu-latest
     if: github.event.pull_request.merged == true
+    permissions:
+      contents: write
+      pull-requests: read
     steps:
       - name: Delete merged branch
-        uses: actions/github-script@v6
+        uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -22,52 +25,127 @@ jobs:
             // Only delete branches from main repo, not forks
             if (!isFromFork && !branchName.includes('main') && !branchName.includes('master')) {
               try {
-                await github.rest.git.deleteRef({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  ref: `heads/${branchName}`
-                });
-                console.log(`✅ Deleted merged branch: ${branchName}`);
+                // Check if branch has protection rules
+                let hasProtection = false;
+                try {
+                  await github.rest.repos.getBranchProtection({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    branch: branchName
+                  });
+                  hasProtection = true;
+                  console.log(`⚠️ Branch ${branchName} has protection rules, skipping deletion`);
+                } catch (protectionError) {
+                  // No protection rules, safe to delete
+                  console.log(`Branch ${branchName} has no protection rules`);
+                }
+                
+                if (!hasProtection) {
+                  await github.rest.git.deleteRef({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    ref: `heads/${branchName}`
+                  });
+                  console.log(`✅ Deleted merged branch: ${branchName}`);
+                }
               } catch (error) {
                 console.log(`❌ Failed to delete branch ${branchName}: ${error.message}`);
+                
+                // If deletion fails due to permissions, suggest manual cleanup
+                if (error.message.includes('Resource not accessible')) {
+                  console.log(`💡 Manual cleanup required for branch ${branchName}`);
+                  console.log('This may be due to branch protection rules or insufficient permissions.');
+                }
               }
+            } else if (isFromFork) {
+              console.log(`🔀 Skipping fork branch: ${branchName}`);
+            } else {
+              console.log(`🔒 Skipping protected branch: ${branchName}`);
             }
 
   cleanup-stale-branches:
     runs-on: ubuntu-latest
     if: github.event_name == 'schedule'
+    permissions:
+      contents: write
+      pull-requests: read
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
           
       - name: Cleanup stale branches
-        run: |
-          # Get branches older than 30 days with no recent activity
-          CUTOFF_DATE=$(date -d '30 days ago' +%s)
-          
-          git for-each-ref --format='%(refname:short) %(committerdate:unix)' refs/remotes/origin/ |
-          while read branch timestamp; do
-            branch_name=${branch#origin/}
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { execSync } = require('child_process');
             
-            # Skip protected branches
-            if [[ "$branch_name" == "main" || "$branch_name" == "master" || "$branch_name" =~ ^release/ ]]; then
-              continue
-            fi
+            // Get branches older than 30 days with no recent activity
+            const cutoffDate = Math.floor(Date.now() / 1000) - (30 * 24 * 60 * 60);
             
-            if [ "$timestamp" -lt "$CUTOFF_DATE" ]; then
-              echo "🗑️ Stale branch found: $branch_name (last activity: $(date -d @$timestamp))"
+            try {
+              const branchOutput = execSync('git for-each-ref --format="%(refname:short) %(committerdate:unix)" refs/remotes/origin/', { encoding: 'utf8' });
+              const branches = branchOutput.trim().split('\n').filter(line => line.trim());
               
-              # Check if branch has open PR
-              PR_COUNT=$(gh pr list --head "$branch_name" --json number --jq length)
-              
-              if [ "$PR_COUNT" -eq 0 ]; then
-                echo "Deleting stale branch: $branch_name"
-                git push origin --delete "$branch_name" || echo "Failed to delete $branch_name"
-              else
-                echo "Branch $branch_name has open PR, skipping deletion"
-              fi
-            fi
-          done
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              for (const line of branches) {
+                const [fullBranch, timestamp] = line.split(' ');
+                const branchName = fullBranch.replace('origin/', '');
+                
+                // Skip protected branches
+                if (['main', 'master'].includes(branchName) || branchName.startsWith('release/')) {
+                  continue;
+                }
+                
+                if (parseInt(timestamp) < cutoffDate) {
+                  const lastActivity = new Date(parseInt(timestamp) * 1000).toLocaleDateString();
+                  console.log(`🗑️ Stale branch found: ${branchName} (last activity: ${lastActivity})`);
+                  
+                  // Check if branch has open PR
+                  try {
+                    const prs = await github.rest.pulls.list({
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      head: `${context.repo.owner}:${branchName}`,
+                      state: 'open'
+                    });
+                    
+                    if (prs.data.length === 0) {
+                      // Check for branch protection
+                      let hasProtection = false;
+                      try {
+                        await github.rest.repos.getBranchProtection({
+                          owner: context.repo.owner,
+                          repo: context.repo.repo,
+                          branch: branchName
+                        });
+                        hasProtection = true;
+                        console.log(`⚠️ Branch ${branchName} has protection rules, skipping deletion`);
+                      } catch (protectionError) {
+                        // No protection rules
+                      }
+                      
+                      if (!hasProtection) {
+                        try {
+                          await github.rest.git.deleteRef({
+                            owner: context.repo.owner,
+                            repo: context.repo.repo,
+                            ref: `heads/${branchName}`
+                          });
+                          console.log(`✅ Deleted stale branch: ${branchName}`);
+                        } catch (deleteError) {
+                          console.log(`❌ Failed to delete ${branchName}: ${deleteError.message}`);
+                        }
+                      }
+                    } else {
+                      console.log(`Branch ${branchName} has open PR, skipping deletion`);
+                    }
+                  } catch (error) {
+                    console.log(`Error checking PRs for ${branchName}: ${error.message}`);
+                  }
+                }
+              }
+            } catch (error) {
+              console.log('Error during stale branch cleanup:', error.message);
+            }
