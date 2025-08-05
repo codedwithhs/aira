@@ -16,7 +16,6 @@ jobs:
       - name: Auto-move items
         uses: actions/github-script@v7
         with:
-          # 🔑 KEY FIX: Use personal access token instead of GITHUB_TOKEN
           github-token: ${{ secrets.PROJECT_TOKEN }}
           script: |
             const PROJECT_ID = process.env.PROJECT_ID;
@@ -25,7 +24,6 @@ jobs:
             async function getProjectInfo() {
               console.log(`🔍 Looking up project by ID: ${PROJECT_ID}`);
               
-              // Direct project lookup by ID
               const directQuery = `
                 query($projectId: ID!) {
                   node(id: $projectId) {
@@ -66,127 +64,11 @@ jobs:
                 }
               } catch (directError) {
                 console.log('❌ Direct project lookup failed:', directError.message);
-                
-                // Enhanced fallback: Try multiple project scopes
-                console.log('🔄 Trying fallback approaches...');
-                
-                // Try viewer projects
-                try {
-                  const viewerQuery = `
-                    query {
-                      viewer {
-                        login
-                        projectsV2(first: 50) {
-                          nodes {
-                            id
-                            title
-                            fields(first: 20) {
-                              nodes {
-                                ... on ProjectV2Field {
-                                  id
-                                  name
-                                }
-                                ... on ProjectV2SingleSelectField {
-                                  id
-                                  name
-                                  options {
-                                    id
-                                    name
-                                  }
-                                }
-                              }
-                            }
-                          }
-                        }
-                      }
-                    }
-                  `;
-                  
-                  const viewerResult = await github.graphql(viewerQuery);
-                  console.log(`👤 Authenticated as: ${viewerResult.viewer.login}`);
-                  console.log(`📋 Found ${viewerResult.viewer.projectsV2.nodes.length} user projects`);
-                  
-                  const project = viewerResult.viewer.projectsV2.nodes.find(p => p.id === PROJECT_ID);
-                  
-                  if (project) {
-                    console.log(`✅ Found project via viewer: ${project.title}`);
-                    return project;
-                  }
-                  
-                  // Show available projects for debugging
-                  if (viewerResult.viewer.projectsV2.nodes.length > 0) {
-                    console.log('📋 Available user projects:');
-                    viewerResult.viewer.projectsV2.nodes.forEach(p => {
-                      console.log(`   - ${p.title} (${p.id})`);
-                    });
-                  }
-                  
-                } catch (viewerError) {
-                  console.log('❌ Viewer query failed:', viewerError.message);
-                }
-                
-                // Try organization projects
-                try {
-                  const orgQuery = `
-                    query($owner: String!) {
-                      organization(login: $owner) {
-                        projectsV2(first: 50) {
-                          nodes {
-                            id
-                            title
-                            fields(first: 20) {
-                              nodes {
-                                ... on ProjectV2Field {
-                                  id
-                                  name
-                                }
-                                ... on ProjectV2SingleSelectField {
-                                  id
-                                  name
-                                  options {
-                                    id
-                                    name
-                                  }
-                                }
-                              }
-                            }
-                          }
-                        }
-                      }
-                    }
-                  `;
-                  
-                  const orgResult = await github.graphql(orgQuery, {
-                    owner: context.repo.owner
-                  });
-                  
-                  console.log(`🏢 Found ${orgResult.organization.projectsV2.nodes.length} org projects`);
-                  
-                  const project = orgResult.organization.projectsV2.nodes.find(p => p.id === PROJECT_ID);
-                  
-                  if (project) {
-                    console.log(`✅ Found project via organization: ${project.title}`);
-                    return project;
-                  }
-                  
-                  // Show available org projects
-                  if (orgResult.organization.projectsV2.nodes.length > 0) {
-                    console.log('📋 Available org projects:');
-                    orgResult.organization.projectsV2.nodes.forEach(p => {
-                      console.log(`   - ${p.title} (${p.id})`);
-                    });
-                  }
-                  
-                } catch (orgError) {
-                  console.log('❌ Organization query failed:', orgError.message);
-                }
-                
-                console.log('❌ Project not found in any scope');
                 return null;
               }
             }
             
-            // Helper function to get item ID for issue/PR
+            // FIXED: Helper function to get item ID with proper pagination
             async function getProjectItemId(contentId) {
               const projectInfo = await getProjectInfo();
               if (!projectInfo) {
@@ -194,50 +76,74 @@ jobs:
                 return null;
               }
               
-              const query = `
-                query($projectId: ID!) {
-                  node(id: $projectId) {
-                    ... on ProjectV2 {
-                      items(first: 200) {
-                        nodes {
-                          id
-                          content {
-                            ... on Issue {
-                              id
-                              number
-                            }
-                            ... on PullRequest {
-                              id
-                              number
+              // Use pagination to handle large projects
+              let cursor = null;
+              let found = false;
+              let itemId = null;
+              
+              while (!found) {
+                const query = `
+                  query($projectId: ID!, $cursor: String) {
+                    node(id: $projectId) {
+                      ... on ProjectV2 {
+                        items(first: 100, after: $cursor) {
+                          pageInfo {
+                            hasNextPage
+                            endCursor
+                          }
+                          nodes {
+                            id
+                            content {
+                              ... on Issue {
+                                id
+                                number
+                              }
+                              ... on PullRequest {
+                                id
+                                number
+                              }
                             }
                           }
                         }
                       }
                     }
                   }
-                }
-              `;
-              
-              try {
-                const result = await github.graphql(query, {
-                  projectId: projectInfo.id
-                });
+                `;
                 
-                const item = result.node.items.nodes.find(
-                  item => item.content && item.content.id === contentId
-                );
-                
-                if (item) {
-                  console.log(`✅ Found project item for content ${item.content.number}`);
-                  return item.id;
-                } else {
-                  console.log(`❌ Content not found in project items`);
+                try {
+                  const result = await github.graphql(query, {
+                    projectId: projectInfo.id,
+                    cursor
+                  });
+                  
+                  const items = result.node.items.nodes;
+                  const item = items.find(item => item.content && item.content.id === contentId);
+                  
+                  if (item) {
+                    console.log(`✅ Found project item for content ${item.content.number}`);
+                    itemId = item.id;
+                    found = true;
+                  }
+                  
+                  // Check if we need to paginate further
+                  if (!found && result.node.items.pageInfo.hasNextPage) {
+                    cursor = result.node.items.pageInfo.endCursor;
+                    console.log(`🔄 Paginating... cursor: ${cursor}`);
+                  } else {
+                    found = true; // Exit loop if no more pages or item found
+                  }
+                  
+                } catch (error) {
+                  console.log('❌ Error finding project item:', error.message);
                   return null;
                 }
-              } catch (error) {
-                console.log('❌ Error finding project item:', error.message);
-                return null;
               }
+              
+              if (!itemId) {
+                console.log(`❌ Content not found in project items`);
+              }
+              
+              return itemId;
             }
             
             // Helper function to add item to project
@@ -367,6 +273,102 @@ jobs:
               }
             }
             
+            // FIXED: Enhanced issue linking function
+            async function findLinkedIssues(prTitle, prBody) {
+              const issues = [];
+              const fullText = `${prTitle} ${prBody}`.toLowerCase();
+              
+              console.log(`🔍 Searching for linked issues in PR content...`);
+              console.log(`   Title: "${prTitle}"`);
+              
+              // Pattern 1: GitHub keywords (closes #123, fixes #123, resolves #123)
+              const githubKeywords = [...fullText.matchAll(/(?:closes?|fix(?:es)?|resolves?)\s+#(\d+)/gi)];
+              githubKeywords.forEach(match => {
+                const issueNum = parseInt(match[1]);
+                if (!issues.includes(issueNum)) {
+                  issues.push(issueNum);
+                  console.log(`   ✅ Found GitHub keyword link: #${issueNum}`);
+                }
+              });
+              
+              // Pattern 2: AIRA format in title (AIRA-64: Description)
+              const airaInTitle = prTitle.match(/^AIRA-(\d+):/i);
+              if (airaInTitle) {
+                const issueNum = parseInt(airaInTitle[1]);
+                if (!issues.includes(issueNum)) {
+                  issues.push(issueNum);
+                  console.log(`   ✅ Found AIRA reference in title: AIRA-${issueNum}`);
+                }
+              }
+              
+              // Pattern 3: AIRA references in body (AIRA-64, implements AIRA-64, etc.)
+              const airaReferences = [...fullText.matchAll(/(?:implements?|closes?|fix(?:es)?|resolves?|addresses?|related to)?\s*AIRA-(\d+)/gi)];
+              airaReferences.forEach(match => {
+                const issueNum = parseInt(match[1]);
+                if (!issues.includes(issueNum)) {
+                  issues.push(issueNum);
+                  console.log(`   ✅ Found AIRA reference in body: AIRA-${issueNum}`);
+                }
+              });
+              
+              // Pattern 4: Direct AIRA mentions (AIRA-64)
+              const directAiraRefs = [...fullText.matchAll(/AIRA-(\d+)/gi)];
+              directAiraRefs.forEach(match => {
+                const issueNum = parseInt(match[1]);
+                if (!issues.includes(issueNum)) {
+                  issues.push(issueNum);
+                  console.log(`   ✅ Found direct AIRA mention: AIRA-${issueNum}`);
+                }
+              });
+              
+              console.log(`🔗 Total unique linked issues found: ${issues.length}`);
+              return issues;
+            }
+            
+            // Helper function to find issue by AIRA number
+            async function findIssueByAiraNumber(airaNumber) {
+              try {
+                const query = `
+                  query($owner: String!, $repo: String!, $searchQuery: String!) {
+                    search(query: $searchQuery, type: ISSUE, first: 10) {
+                      nodes {
+                        ... on Issue {
+                          number
+                          title
+                          state
+                          id
+                        }
+                      }
+                    }
+                  }
+                `;
+                
+                const searchQuery = `repo:${context.repo.owner}/${context.repo.repo} AIRA-${airaNumber} in:title`;
+                console.log(`   🔍 Searching for: ${searchQuery}`);
+                
+                const result = await github.graphql(query, {
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  searchQuery
+                });
+                
+                const issues = result.search.nodes.filter(node => 
+                  node.title.includes(`AIRA-${airaNumber}`)
+                );
+                
+                if (issues.length > 0) {
+                  console.log(`   ✅ Found issue: #${issues[0].number} - ${issues[0].title}`);
+                  return issues[0];
+                } else {
+                  console.log(`   ❌ No issue found for AIRA-${airaNumber}`);
+                  return null;
+                }
+              } catch (error) {
+                console.log(`   ❌ Error searching for AIRA-${airaNumber}:`, error.message);
+                return null;
+              }
+            }
+            
             // Main automation logic
             console.log(`🚀 Starting automation for ${context.eventName} event`);
             
@@ -377,7 +379,6 @@ jobs:
               
               console.log(`📝 Processing issue #${issue.number}: "${issue.title}"`);
               console.log(`   Action: ${action}`);
-              console.log(`   Issue ID: ${issueId}`);
               
               // Ensure issue is added to project
               let itemId = await getProjectItemId(issueId);
@@ -435,7 +436,6 @@ jobs:
               
               console.log(`🔍 Processing PR #${pr.number}: "${pr.title}"`);
               console.log(`   Action: ${action}`);
-              console.log(`   PR ID: ${prId}`);
               
               // Ensure PR is added to project
               let itemId = await getProjectItemId(prId);
@@ -464,47 +464,49 @@ jobs:
                     console.log(`🎉 PR merged, moving to Done`);
                     await updateItemStatus(itemId, 'Done');
                     
-                    // Auto-close and move linked issues
-                    const body = pr.body || '';
-                    const issueNumbers = [...body.matchAll(/(?:closes|fixes|resolves)\s+#(\d+)/gi)]
-                      .map(match => parseInt(match[1]));
+                    // FIXED: Enhanced issue linking and auto-close
+                    const linkedAiraNumbers = await findLinkedIssues(pr.title, pr.body || '');
                     
-                    console.log(`🔗 Found ${issueNumbers.length} linked issues: ${issueNumbers}`);
-                    
-                    for (const issueNumber of issueNumbers) {
-                      try {
-                        console.log(`🔄 Processing linked issue #${issueNumber}...`);
-                        
-                        // Close the issue
-                        await github.rest.issues.update({
-                          owner: context.repo.owner,
-                          repo: context.repo.repo,
-                          issue_number: issueNumber,
-                          state: 'closed'
-                        });
-                        
-                        // Get issue details and move to Done
-                        const issueResponse = await github.rest.issues.get({
-                          owner: context.repo.owner,
-                          repo: context.repo.repo,
-                          issue_number: issueNumber
-                        });
-                        
-                        const linkedIssueId = issueResponse.data.node_id;
-                        let linkedItemId = await getProjectItemId(linkedIssueId);
-                        
-                        if (!linkedItemId) {
-                          linkedItemId = await addToProject(linkedIssueId);
+                    if (linkedAiraNumbers.length > 0) {
+                      console.log(`🔗 Processing ${linkedAiraNumbers.length} linked issues...`);
+                      
+                      for (const airaNumber of linkedAiraNumbers) {
+                        try {
+                          console.log(`🔄 Processing AIRA-${airaNumber}...`);
+                          
+                          // Find the actual GitHub issue
+                          const issue = await findIssueByAiraNumber(airaNumber);
+                          
+                          if (issue && issue.state === 'open') {
+                            // Close the issue
+                            await github.rest.issues.update({
+                              owner: context.repo.owner,
+                              repo: context.repo.repo,
+                              issue_number: issue.number,
+                              state: 'closed'
+                            });
+                            
+                            // Move to Done in project
+                            let linkedItemId = await getProjectItemId(issue.id);
+                            
+                            if (!linkedItemId) {
+                              linkedItemId = await addToProject(issue.id);
+                            }
+                            
+                            if (linkedItemId) {
+                              await updateItemStatus(linkedItemId, 'Done');
+                            }
+                            
+                            console.log(`✅ Auto-closed and moved AIRA-${airaNumber} (issue #${issue.number}) to Done`);
+                          } else if (issue) {
+                            console.log(`ℹ️ Issue AIRA-${airaNumber} already closed`);
+                          }
+                        } catch (error) {
+                          console.log(`❌ Failed to process AIRA-${airaNumber}:`, error.message);
                         }
-                        
-                        if (linkedItemId) {
-                          await updateItemStatus(linkedItemId, 'Done');
-                        }
-                        
-                        console.log(`✅ Auto-closed and moved issue #${issueNumber} to Done`);
-                      } catch (error) {
-                        console.log(`❌ Failed to process linked issue #${issueNumber}:`, error.message);
                       }
+                    } else {
+                      console.log(`ℹ️ No linked issues found to auto-close`);
                     }
                   } else {
                     console.log(`📝 PR closed without merge, moving back to Todo`);
