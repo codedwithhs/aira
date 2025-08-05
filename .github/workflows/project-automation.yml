@@ -7,7 +7,7 @@ on:
     types: [opened, closed, ready_for_review, converted_to_draft]
 
 env:
-  PROJECT_NUMBER: 1  # Change this to your project number (find in project URL)
+  PROJECT_ID: PVT_kwHOAGEyUM4A_SBA  # Your project ID
 
 jobs:
   update-project:
@@ -18,16 +18,17 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const PROJECT_NUMBER = parseInt(process.env.PROJECT_NUMBER);
+            const PROJECT_ID = process.env.PROJECT_ID;
             
             // Helper function to get project info
             async function getProjectInfo() {
-              // Try organization project first
-              const orgQuery = `
-                query($org: String!, $projectNumber: Int!) {
-                  organization(login: $org) {
-                    projectV2(number: $projectNumber) {
+              // Direct project lookup by ID (works for user, org, and repo projects)
+              const directQuery = `
+                query($projectId: ID!) {
+                  node(id: $projectId) {
+                    ... on ProjectV2 {
                       id
+                      title
                       fields(first: 20) {
                         nodes {
                           ... on ProjectV2Field {
@@ -50,34 +51,43 @@ jobs:
               `;
               
               try {
-                console.log(`Looking for organization project ${PROJECT_NUMBER} in ${context.repo.owner}`);
-                const result = await github.graphql(orgQuery, {
-                  org: context.repo.owner,
-                  projectNumber: PROJECT_NUMBER
+                console.log(`Looking up project by ID: ${PROJECT_ID}`);
+                const result = await github.graphql(directQuery, {
+                  projectId: PROJECT_ID
                 });
-                console.log(`✅ Found organization project: ${result.organization.projectV2.id}`);
-                return result.organization.projectV2;
-              } catch (orgError) {
-                console.log('Organization project not found, trying repository project...');
                 
-                // Try repository-level project as fallback
-                const repoQuery = `
-                  query($owner: String!, $repo: String!, $projectNumber: Int!) {
-                    repository(owner: $owner, name: $repo) {
-                      projectV2(number: $projectNumber) {
-                        id
-                        fields(first: 20) {
-                          nodes {
-                            ... on ProjectV2Field {
-                              id
-                              name
-                            }
-                            ... on ProjectV2SingleSelectField {
-                              id
-                              name
-                              options {
+                if (result.node) {
+                  console.log(`✅ Found project: ${result.node.title} (${result.node.id})`);
+                  return result.node;
+                } else {
+                  console.log('❌ Project ID resolved but returned null');
+                  return null;
+                }
+              } catch (directError) {
+                console.log('❌ Direct project lookup failed:', directError.message);
+                
+                // Fallback: Try to find project via viewer query
+                console.log('Trying to find project via viewer query...');
+                const viewerQuery = `
+                  query {
+                    viewer {
+                      projectsV2(first: 20) {
+                        nodes {
+                          id
+                          title
+                          fields(first: 20) {
+                            nodes {
+                              ... on ProjectV2Field {
                                 id
                                 name
+                              }
+                              ... on ProjectV2SingleSelectField {
+                                id
+                                name
+                                options {
+                                  id
+                                  name
+                                }
                               }
                             }
                           }
@@ -88,18 +98,19 @@ jobs:
                 `;
                 
                 try {
-                  console.log(`Looking for repository project ${PROJECT_NUMBER} in ${context.repo.owner}/${context.repo.repo}`);
-                  const result = await github.graphql(repoQuery, {
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    projectNumber: PROJECT_NUMBER
-                  });
-                  console.log(`✅ Found repository project: ${result.repository.projectV2.id}`);
-                  return result.repository.projectV2;
-                } catch (repoError) {
-                  console.log('❌ No project found at organization or repository level');
-                  console.log('Organization error:', orgError.message);
-                  console.log('Repository error:', repoError.message);
+                  const viewerResult = await github.graphql(viewerQuery);
+                  const project = viewerResult.viewer.projectsV2.nodes.find(p => p.id === PROJECT_ID);
+                  
+                  if (project) {
+                    console.log(`✅ Found project via viewer: ${project.title} (${project.id})`);
+                    return project;
+                  } else {
+                    console.log('❌ Project not found in viewer projects');
+                    console.log('Available projects:', viewerResult.viewer.projectsV2.nodes.map(p => `${p.title} (${p.id})`));
+                    return null;
+                  }
+                } catch (viewerError) {
+                  console.log('❌ Viewer query failed:', viewerError.message);
                   return null;
                 }
               }
