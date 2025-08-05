@@ -7,7 +7,7 @@ on:
     types: [opened, closed, ready_for_review, converted_to_draft]
 
 env:
-  PROJECT_ID: PVT_kwHOAGEyUM4A_SBA  # GitHub Project V2 ID
+  PROJECT_ID: PVT_kwHOAGEyUM4A_SBA  # Your project ID
 
 jobs:
   update-project:
@@ -22,12 +22,13 @@ jobs:
             
             // Helper function to get project info
             async function getProjectInfo() {
-              // Try organization project first
-              let query = `
-                query($org: String!, $projectNumber: Int!) {
-                  organization(login: $org) {
-                    projectV2(number: $projectNumber) {
+              // Direct project lookup by ID (works for user, org, and repo projects)
+              const directQuery = `
+                query($projectId: ID!) {
+                  node(id: $projectId) {
+                    ... on ProjectV2 {
                       id
+                      title
                       fields(first: 20) {
                         nodes {
                           ... on ProjectV2Field {
@@ -50,56 +51,30 @@ jobs:
               `;
               
               try {
-                // If PROJECT_ID is a number, use it as project number
-                if (/^\d+$/.test(PROJECT_ID)) {
-                  const result = await github.graphql(query, {
-                    org: context.repo.owner,
-                    projectNumber: parseInt(PROJECT_ID)
-                  });
-                  return result.organization.projectV2;
-                }
-                
-                // Otherwise try as global ID
-                query = `
-                  query($projectId: ID!) {
-                    node(id: $projectId) {
-                      ... on ProjectV2 {
-                        id
-                        fields(first: 20) {
-                          nodes {
-                            ... on ProjectV2Field {
-                              id
-                              name
-                            }
-                            ... on ProjectV2SingleSelectField {
-                              id
-                              name
-                              options {
-                                id
-                                name
-                              }
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
-                `;
-                
-                const result = await github.graphql(query, {
+                console.log(`Looking up project by ID: ${PROJECT_ID}`);
+                const result = await github.graphql(directQuery, {
                   projectId: PROJECT_ID
                 });
-                return result.node;
-              } catch (error) {
-                console.log('Error fetching project info:', error);
                 
-                // Try repository-level project as fallback
-                try {
-                  query = `
-                    query($owner: String!, $repo: String!, $projectNumber: Int!) {
-                      repository(owner: $owner, name: $repo) {
-                        projectV2(number: $projectNumber) {
+                if (result.node) {
+                  console.log(`✅ Found project: ${result.node.title} (${result.node.id})`);
+                  return result.node;
+                } else {
+                  console.log('❌ Project ID resolved but returned null');
+                  return null;
+                }
+              } catch (directError) {
+                console.log('❌ Direct project lookup failed:', directError.message);
+                
+                // Fallback: Try to find project via viewer query
+                console.log('Trying to find project via viewer query...');
+                const viewerQuery = `
+                  query {
+                    viewer {
+                      projectsV2(first: 20) {
+                        nodes {
                           id
+                          title
                           fields(first: 20) {
                             nodes {
                               ... on ProjectV2Field {
@@ -119,21 +94,25 @@ jobs:
                         }
                       }
                     }
-                  `;
-                  
-                  if (/^\d+$/.test(PROJECT_ID)) {
-                    const result = await github.graphql(query, {
-                      owner: context.repo.owner,
-                      repo: context.repo.repo,
-                      projectNumber: parseInt(PROJECT_ID)
-                    });
-                    return result.repository.projectV2;
                   }
-                } catch (fallbackError) {
-                  console.log('Repository project fallback failed:', fallbackError);
-                }
+                `;
                 
-                return null;
+                try {
+                  const viewerResult = await github.graphql(viewerQuery);
+                  const project = viewerResult.viewer.projectsV2.nodes.find(p => p.id === PROJECT_ID);
+                  
+                  if (project) {
+                    console.log(`✅ Found project via viewer: ${project.title} (${project.id})`);
+                    return project;
+                  } else {
+                    console.log('❌ Project not found in viewer projects');
+                    console.log('Available projects:', viewerResult.viewer.projectsV2.nodes.map(p => `${p.title} (${p.id})`));
+                    return null;
+                  }
+                } catch (viewerError) {
+                  console.log('❌ Viewer query failed:', viewerError.message);
+                  return null;
+                }
               }
             }
             
