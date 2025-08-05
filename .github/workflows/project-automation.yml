@@ -325,52 +325,12 @@ jobs:
               return issues;
             }
             
-            // Helper function to find issue by AIRA number (REST API fallback)
+            // Helper function to find issue by AIRA number (REST API primary)
             async function findIssueByAiraNumber(airaNumber) {
               try {
-                // First try GraphQL search
-                console.log(`   🔍 Searching for AIRA-${airaNumber} using GraphQL...`);
+                // Use REST API as primary method (GraphQL search has been problematic)
+                console.log(`   🔍 Searching for AIRA-${airaNumber} using REST API...`);
                 
-                const query = `
-                  query($searchQuery: String!) {
-                    search(query: $searchQuery, type: ISSUE, first: 10) {
-                      nodes {
-                        ... on Issue {
-                          number
-                          title
-                          state
-                          id
-                        }
-                      }
-                    }
-                  }
-                `;
-                
-                const searchQuery = `repo:${context.repo.owner}/${context.repo.repo} AIRA-${airaNumber} in:title`;
-                console.log(`   🔍 GraphQL search query: ${searchQuery}`);
-                
-                const result = await github.graphql(query, {
-                  searchQuery
-                });
-                
-                const issues = result.search.nodes.filter(node => 
-                  node.title.includes(`AIRA-${airaNumber}`)
-                );
-                
-                if (issues.length > 0) {
-                  console.log(`   ✅ Found issue via GraphQL: #${issues[0].number} - ${issues[0].title}`);
-                  return issues[0];
-                }
-                
-                console.log(`   ❌ No results from GraphQL search, trying REST API...`);
-                
-              } catch (graphqlError) {
-                console.log(`   ❌ GraphQL search failed: ${graphqlError.message}`);
-                console.log(`   🔄 Falling back to REST API search...`);
-              }
-              
-              try {
-                // Fallback to REST API search
                 const searchResponse = await github.rest.search.issuesAndPullRequests({
                   q: `repo:${context.repo.owner}/${context.repo.repo} AIRA-${airaNumber} in:title type:issue`,
                   per_page: 10
@@ -378,52 +338,57 @@ jobs:
                 
                 console.log(`   🔍 REST API found ${searchResponse.data.total_count} results`);
                 
-                const matchingIssues = searchResponse.data.items.filter(issue => 
-                  issue.title.includes(`AIRA-${airaNumber}`)
-                );
-                
-                if (matchingIssues.length > 0) {
-                  const issue = matchingIssues[0];
-                  console.log(`   ✅ Found issue via REST API: #${issue.number} - ${issue.title}`);
-                  return {
-                    number: issue.number,
-                    title: issue.title,
-                    state: issue.state,
-                    id: issue.node_id
-                  };
-                } else {
-                  console.log(`   ❌ No matching issues found for AIRA-${airaNumber}`);
-                  return null;
-                }
-                
-              } catch (restError) {
-                console.log(`   ❌ REST API search also failed: ${restError.message}`);
-                
-                // Last resort: try to find by issue number if AIRA number matches
-                try {
-                  console.log(`   🔄 Last resort: checking if AIRA-${airaNumber} corresponds to issue #${airaNumber}...`);
+                if (searchResponse.data.items && searchResponse.data.items.length > 0) {
+                  const matchingIssues = searchResponse.data.items.filter(issue => 
+                    issue.title && issue.title.includes(`AIRA-${airaNumber}`)
+                  );
                   
-                  const issueResponse = await github.rest.issues.get({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    issue_number: airaNumber
-                  });
-                  
-                  if (issueResponse.data.title.includes(`AIRA-${airaNumber}`)) {
-                    console.log(`   ✅ Found by direct lookup: #${issueResponse.data.number} - ${issueResponse.data.title}`);
+                  if (matchingIssues.length > 0) {
+                    const issue = matchingIssues[0];
+                    console.log(`   ✅ Found issue via REST API: #${issue.number} - ${issue.title} (State: ${issue.state})`);
                     return {
-                      number: issueResponse.data.number,
-                      title: issueResponse.data.title,
-                      state: issueResponse.data.state,
-                      id: issueResponse.data.node_id
+                      number: issue.number,
+                      title: issue.title,
+                      state: issue.state,
+                      id: issue.node_id
                     };
                   }
-                } catch (directError) {
-                  console.log(`   ❌ Direct lookup failed: ${directError.message}`);
                 }
                 
-                return null;
+                console.log(`   ❌ No matching issues found in search results`);
+                
+              } catch (restError) {
+                console.log(`   ❌ REST API search failed: ${restError.message}`);
               }
+              
+              try {
+                // Fallback: Direct lookup if AIRA number matches issue number
+                console.log(`   🔄 Fallback: checking if AIRA-${airaNumber} corresponds to issue #${airaNumber}...`);
+                
+                const issueResponse = await github.rest.issues.get({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: airaNumber
+                });
+                
+                if (issueResponse.data.title && issueResponse.data.title.includes(`AIRA-${airaNumber}`)) {
+                  console.log(`   ✅ Found by direct lookup: #${issueResponse.data.number} - ${issueResponse.data.title} (State: ${issueResponse.data.state})`);
+                  return {
+                    number: issueResponse.data.number,
+                    title: issueResponse.data.title,
+                    state: issueResponse.data.state,
+                    id: issueResponse.data.node_id
+                  };
+                } else {
+                  console.log(`   ❌ Issue #${airaNumber} exists but doesn't match AIRA-${airaNumber}`);
+                }
+                
+              } catch (directError) {
+                console.log(`   ❌ Direct lookup failed: ${directError.message}`);
+              }
+              
+              console.log(`   ❌ Could not find issue for AIRA-${airaNumber}`);
+              return null;
             }
             
             // Main automation logic
@@ -534,7 +499,16 @@ jobs:
                           // Find the actual GitHub issue
                           const issue = await findIssueByAiraNumber(airaNumber);
                           
-                          if (issue && issue.state === 'open') {
+                          if (!issue) {
+                            console.log(`   ❌ Could not find GitHub issue for AIRA-${airaNumber}`);
+                            continue;
+                          }
+                          
+                          console.log(`   📋 Found issue #${issue.number}: "${issue.title}" (State: ${issue.state})`);
+                          
+                          if (issue.state === 'open') {
+                            console.log(`   🔄 Issue is open, proceeding to close it...`);
+                            
                             // Close the issue
                             await github.rest.issues.update({
                               owner: context.repo.owner,
@@ -543,20 +517,50 @@ jobs:
                               state: 'closed'
                             });
                             
+                            console.log(`   ✅ Closed issue #${issue.number}`);
+                            
                             // Move to Done in project
                             let linkedItemId = await getProjectItemId(issue.id);
                             
                             if (!linkedItemId) {
+                              console.log(`   🔄 Adding issue to project...`);
                               linkedItemId = await addToProject(issue.id);
                             }
                             
                             if (linkedItemId) {
                               await updateItemStatus(linkedItemId, 'Done');
+                              console.log(`   ✅ Moved issue to Done in project`);
+                            } else {
+                              console.log(`   ❌ Could not add issue to project`);
                             }
                             
                             console.log(`✅ Auto-closed and moved AIRA-${airaNumber} (issue #${issue.number}) to Done`);
-                          } else if (issue) {
-                            console.log(`ℹ️ Issue AIRA-${airaNumber} already closed`);
+                            
+                          } else if (issue.state === 'closed') {
+                            console.log(`   ℹ️ Issue AIRA-${airaNumber} (issue #${issue.number}) is already closed, skipping closure`);
+                            
+                            // Still move to Done in project if not already there
+                            let linkedItemId = await getProjectItemId(issue.id);
+                            
+                            if (!linkedItemId) {
+                              console.log(`   🔄 Adding closed issue to project...`);
+                              linkedItemId = await addToProject(issue.id);
+                            }
+                            
+                            if (linkedItemId) {
+                              const currentStatus = await getCurrentItemStatus(linkedItemId);
+                              if (currentStatus && currentStatus.toLowerCase() !== 'done') {
+                                await updateItemStatus(linkedItemId, 'Done');
+                                console.log(`   ✅ Moved already-closed issue to Done in project`);
+                              } else {
+                                console.log(`   ℹ️ Issue already in Done status`);
+                              }
+                            }
+                            
+                            console.log(`✅ Verified AIRA-${airaNumber} (issue #${issue.number}) is closed and in Done status`);
+                            
+                          } else {
+                            console.log(`   ⚠️ Issue AIRA-${airaNumber} has unexpected state: ${issue.state}`);
                           }
                         } catch (error) {
                           console.log(`❌ Failed to process AIRA-${airaNumber}:`, error.message);
