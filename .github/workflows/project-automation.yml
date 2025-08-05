@@ -325,11 +325,14 @@ jobs:
               return issues;
             }
             
-            // Helper function to find issue by AIRA number
+            // Helper function to find issue by AIRA number (REST API fallback)
             async function findIssueByAiraNumber(airaNumber) {
               try {
+                // First try GraphQL search
+                console.log(`   🔍 Searching for AIRA-${airaNumber} using GraphQL...`);
+                
                 const query = `
-                  query($owner: String!, $repo: String!, $searchQuery: String!) {
+                  query($searchQuery: String!) {
                     search(query: $searchQuery, type: ISSUE, first: 10) {
                       nodes {
                         ... on Issue {
@@ -344,11 +347,9 @@ jobs:
                 `;
                 
                 const searchQuery = `repo:${context.repo.owner}/${context.repo.repo} AIRA-${airaNumber} in:title`;
-                console.log(`   🔍 Searching for: ${searchQuery}`);
+                console.log(`   🔍 GraphQL search query: ${searchQuery}`);
                 
                 const result = await github.graphql(query, {
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
                   searchQuery
                 });
                 
@@ -357,14 +358,70 @@ jobs:
                 );
                 
                 if (issues.length > 0) {
-                  console.log(`   ✅ Found issue: #${issues[0].number} - ${issues[0].title}`);
+                  console.log(`   ✅ Found issue via GraphQL: #${issues[0].number} - ${issues[0].title}`);
                   return issues[0];
+                }
+                
+                console.log(`   ❌ No results from GraphQL search, trying REST API...`);
+                
+              } catch (graphqlError) {
+                console.log(`   ❌ GraphQL search failed: ${graphqlError.message}`);
+                console.log(`   🔄 Falling back to REST API search...`);
+              }
+              
+              try {
+                // Fallback to REST API search
+                const searchResponse = await github.rest.search.issuesAndPullRequests({
+                  q: `repo:${context.repo.owner}/${context.repo.repo} AIRA-${airaNumber} in:title type:issue`,
+                  per_page: 10
+                });
+                
+                console.log(`   🔍 REST API found ${searchResponse.data.total_count} results`);
+                
+                const matchingIssues = searchResponse.data.items.filter(issue => 
+                  issue.title.includes(`AIRA-${airaNumber}`)
+                );
+                
+                if (matchingIssues.length > 0) {
+                  const issue = matchingIssues[0];
+                  console.log(`   ✅ Found issue via REST API: #${issue.number} - ${issue.title}`);
+                  return {
+                    number: issue.number,
+                    title: issue.title,
+                    state: issue.state,
+                    id: issue.node_id
+                  };
                 } else {
-                  console.log(`   ❌ No issue found for AIRA-${airaNumber}`);
+                  console.log(`   ❌ No matching issues found for AIRA-${airaNumber}`);
                   return null;
                 }
-              } catch (error) {
-                console.log(`   ❌ Error searching for AIRA-${airaNumber}:`, error.message);
+                
+              } catch (restError) {
+                console.log(`   ❌ REST API search also failed: ${restError.message}`);
+                
+                // Last resort: try to find by issue number if AIRA number matches
+                try {
+                  console.log(`   🔄 Last resort: checking if AIRA-${airaNumber} corresponds to issue #${airaNumber}...`);
+                  
+                  const issueResponse = await github.rest.issues.get({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: airaNumber
+                  });
+                  
+                  if (issueResponse.data.title.includes(`AIRA-${airaNumber}`)) {
+                    console.log(`   ✅ Found by direct lookup: #${issueResponse.data.number} - ${issueResponse.data.title}`);
+                    return {
+                      number: issueResponse.data.number,
+                      title: issueResponse.data.title,
+                      state: issueResponse.data.state,
+                      id: issueResponse.data.node_id
+                    };
+                  }
+                } catch (directError) {
+                  console.log(`   ❌ Direct lookup failed: ${directError.message}`);
+                }
+                
                 return null;
               }
             }
