@@ -1,0 +1,43 @@
+name: Auto-Branch for External Contributors
+
+on:
+  issues:
+    types: [labeled, assigned]
+
+jobs:
+  create-branch:
+    # Only for external contributions when approved
+    if: |
+      contains(github.event.issue.labels.*.name, 'external-contribution') &&
+      (contains(github.event.label.name, 'approved') || github.event.action == 'assigned')
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Create branch
+        run: |
+          ISSUE_NUMBER=${{ github.event.issue.number }}
+          BRANCH_NAME="AIRA-${ISSUE_NUMBER}"
+          
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          git checkout -b $BRANCH_NAME
+          git push origin $BRANCH_NAME
+          
+      - name: Comment on issue
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const issueNumber = context.issue.number;
+            const branchName = `AIRA-${issueNumber}`;
+            
+            await github.rest.issues.createComment({
+              issue_number: issueNumber,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `🚀 **Branch created: \`${branchName}\`**
+            

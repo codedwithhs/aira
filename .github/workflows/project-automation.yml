@@ -1,0 +1,341 @@
+name: Project Board Automation
+
+on:
+  issues:
+    types: [opened, closed, assigned, labeled]
+  pull_request:
+    types: [opened, closed, ready_for_review, converted_to_draft]
+
+env:
+  PROJECT_ID: PVT_kwHOAGEyUM4A_SBA  # GitHub Project V2 ID
+
+jobs:
+  update-project:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Auto-move items
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const PROJECT_ID = process.env.PROJECT_ID;
+            
+            // Helper function to get project info by ID
+            async function getProjectInfo() {
+              const query = `
+                query($projectId: ID!) {
+                  node(id: $projectId) {
+                    ... on ProjectV2 {
+                      id
+                      fields(first: 20) {
+                        nodes {
+                          ... on ProjectV2Field {
+                            id
+                            name
+                          }
+                          ... on ProjectV2SingleSelectField {
+                            id
+                            name
+                            options {
+                              id
+                              name
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              `;
+              
+              try {
+                const result = await github.graphql(query, {
+                  projectId: PROJECT_ID
+                });
+                return result.node;
+              } catch (error) {
+                console.log('Error fetching project info:', error);
+                return null;
+              }
+            }
+            
+            // Helper function to get item ID for issue/PR
+            async function getProjectItemId(contentId) {
+              const query = `
+                query($projectId: ID!, $contentId: ID!) {
+                  node(id: $projectId) {
+                    ... on ProjectV2 {
+                      items(first: 100) {
+                        nodes {
+                          id
+                          content {
+                            ... on Issue {
+                              id
+                            }
+                            ... on PullRequest {
+                              id
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              `;
+              
+              try {
+                const result = await github.graphql(query, {
+                  projectId: PROJECT_ID,
+                  contentId
+                });
+                
+                const item = result.node.items.nodes.find(
+                  item => item.content && item.content.id === contentId
+                );
+                return item ? item.id : null;
+              } catch (error) {
+                console.log('Error finding project item:', error);
+                return null;
+              }
+            }
+            
+            // Helper function to add item to project
+            async function addToProject(contentId) {
+              const projectInfo = await getProjectInfo();
+              if (!projectInfo) return null;
+              
+              const mutation = `
+                mutation($projectId: ID!, $contentId: ID!) {
+                  addProjectV2ItemById(input: {projectId: $projectId, contentId: $contentId}) {
+                    item {
+                      id
+                    }
+                  }
+                }
+              `;
+              
+              try {
+                const result = await github.graphql(mutation, {
+                  projectId: projectInfo.id,
+                  contentId
+                });
+                return result.addProjectV2ItemById.item.id;
+              } catch (error) {
+                console.log('Error adding to project:', error);
+                return null;
+              }
+            }
+            
+            // Helper function to update item status
+            async function updateItemStatus(itemId, statusName) {
+              const projectInfo = await getProjectInfo();
+              if (!projectInfo) return;
+              
+              const statusField = projectInfo.fields.nodes.find(
+                field => field.name.toLowerCase() === 'status'
+              );
+              
+              if (!statusField || !statusField.options) {
+                console.log('Status field not found');
+                return;
+              }
+              
+              const statusOption = statusField.options.find(
+                option => option.name.toLowerCase() === statusName.toLowerCase()
+              );
+              
+              if (!statusOption) {
+                console.log(`Status option "${statusName}" not found`);
+                return;
+              }
+              
+              const mutation = `
+                mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: ProjectV2FieldValue!) {
+                  updateProjectV2ItemFieldValue(input: {
+                    projectId: $projectId,
+                    itemId: $itemId,
+                    fieldId: $fieldId,
+                    value: $value
+                  }) {
+                    projectV2Item {
+                      id
+                    }
+                  }
+                }
+              `;
+              
+              try {
+                await github.graphql(mutation, {
+                  projectId: projectInfo.id,
+                  itemId,
+                  fieldId: statusField.id,
+                  value: {
+                    singleSelectOptionId: statusOption.id
+                  }
+                });
+                console.log(`✅ Updated item status to: ${statusName}`);
+              } catch (error) {
+                console.log(`❌ Failed to update status to ${statusName}:`, error);
+              }
+            }
+            
+            // Helper function to get current item status
+            async function getCurrentItemStatus(itemId) {
+              const projectInfo = await getProjectInfo();
+              if (!projectInfo) return null;
+              
+              const query = `
+                query($itemId: ID!) {
+                  node(id: $itemId) {
+                    ... on ProjectV2Item {
+                      fieldValues(first: 20) {
+                        nodes {
+                          ... on ProjectV2ItemFieldSingleSelectValue {
+                            name
+                            field {
+                              ... on ProjectV2SingleSelectField {
+                                name
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              `;
+              
+              try {
+                const result = await github.graphql(query, { itemId });
+                const statusField = result.node.fieldValues.nodes.find(
+                  field => field.field && field.field.name.toLowerCase() === 'status'
+                );
+                return statusField ? statusField.name : null;
+              } catch (error) {
+                console.log('Error getting current status:', error);
+                return null;
+              }
+            }
+            
+            // Main automation logic
+            if (context.eventName === 'issues') {
+              const action = context.payload.action;
+              const issue = context.payload.issue;
+              const issueId = issue.node_id;
+              
+              console.log(`📝 Processing issue #${issue.number} - Action: ${action}`);
+              
+              // Ensure issue is added to project
+              let itemId = await getProjectItemId(issueId);
+              if (!itemId) {
+                itemId = await addToProject(issueId);
+                if (itemId) {
+                  console.log(`✅ Added issue #${issue.number} to project`);
+                }
+              }
+              
+              if (itemId) {
+                // Smart status transitions based on action
+                if (action === 'opened') {
+                  // New issues go to backlog for triage
+                  await updateItemStatus(itemId, 'Backlog');
+                } else if (action === 'assigned') {
+                  // Assignment moves to Ready (not automatically In Progress)
+                  // Team member decides when to start work
+                  await updateItemStatus(itemId, 'Ready');
+                } else if (action === 'closed') {
+                  await updateItemStatus(itemId, 'Done');
+                } else if (action === 'labeled') {
+                  // Label-based transitions for more granular control
+                  const label = context.payload.label;
+                  if (label.name === 'ready') {
+                    await updateItemStatus(itemId, 'Ready');
+                  } else if (label.name === 'in-progress') {
+                    await updateItemStatus(itemId, 'In Progress');
+                  } else if (label.name === 'blocked') {
+                    await updateItemStatus(itemId, 'Blocked');
+                  } else if (label.name === 'needs-review') {
+                    await updateItemStatus(itemId, 'In Review');
+                  } else if (label.name === 'priority-high') {
+                    // High priority items can jump to Ready if not already started
+                    const currentStatus = await getCurrentItemStatus(itemId);
+                    if (currentStatus === 'Backlog') {
+                      await updateItemStatus(itemId, 'Ready');
+                    }
+                  }
+                }
+              }
+            }
+            
+            if (context.eventName === 'pull_request') {
+              const action = context.payload.action;
+              const pr = context.payload.pull_request;
+              const prId = pr.node_id;
+              
+              console.log(`🔍 Processing PR #${pr.number} - Action: ${action}`);
+              
+              // Ensure PR is added to project
+              let itemId = await getProjectItemId(prId);
+              if (!itemId) {
+                itemId = await addToProject(prId);
+                if (itemId) {
+                  console.log(`✅ Added PR #${pr.number} to project`);
+                }
+              }
+              
+              if (itemId) {
+                // Move based on action
+                if (action === 'opened' || action === 'ready_for_review') {
+                  await updateItemStatus(itemId, 'In Review');
+                } else if (action === 'converted_to_draft') {
+                  await updateItemStatus(itemId, 'In Progress');
+                } else if (action === 'closed') {
+                  if (pr.merged) {
+                    await updateItemStatus(itemId, 'Done');
+                    console.log(`🎉 PR #${pr.number} merged and moved to Done`);
+                    
+                    // Auto-close and move linked issues
+                    const body = pr.body || '';
+                    const issueNumbers = [...body.matchAll(/(?:closes|fixes|resolves)\s+#(\d+)/gi)]
+                      .map(match => parseInt(match[1]));
+                    
+                    for (const issueNumber of issueNumbers) {
+                      try {
+                        // Close the issue
+                        await github.rest.issues.update({
+                          owner: context.repo.owner,
+                          repo: context.repo.repo,
+                          issue_number: issueNumber,
+                          state: 'closed'
+                        });
+                        
+                        // Get issue details and move to Done
+                        const issueResponse = await github.rest.issues.get({
+                          owner: context.repo.owner,
+                          repo: context.repo.repo,
+                          issue_number: issueNumber
+                        });
+                        
+                        const linkedIssueId = issueResponse.data.node_id;
+                        let linkedItemId = await getProjectItemId(linkedIssueId);
+                        
+                        if (!linkedItemId) {
+                          linkedItemId = await addToProject(linkedIssueId);
+                        }
+                        
+                        if (linkedItemId) {
+                          await updateItemStatus(linkedItemId, 'Done');
+                        }
+                        
+                        console.log(`✅ Auto-closed and moved issue #${issueNumber} to Done`);
+                      } catch (error) {
+                        console.log(`❌ Failed to process linked issue #${issueNumber}:`, error);
+                      }
+                    }
+                  } else {
+                    await updateItemStatus(itemId, 'Todo');
+                    console.log(`📝 PR #${pr.number} closed without merge, moved back to Todo`);
+                  }
+                }
+              }
+            }
