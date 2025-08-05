@@ -7,7 +7,7 @@ on:
     types: [opened, closed, ready_for_review, converted_to_draft]
 
 env:
-  PROJECT_ID: PVT_kwHOAGEyUM4A_SBA  # GitHub Project V2 ID
+  PROJECT_NUMBER: 1  # Change this to your project number (find in project URL)
 
 jobs:
   update-project:
@@ -18,12 +18,12 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const PROJECT_ID = process.env.PROJECT_ID;
+            const PROJECT_NUMBER = parseInt(process.env.PROJECT_NUMBER);
             
             // Helper function to get project info
             async function getProjectInfo() {
               // Try organization project first
-              let query = `
+              const orgQuery = `
                 query($org: String!, $projectNumber: Int!) {
                   organization(login: $org) {
                     projectV2(number: $projectNumber) {
@@ -50,20 +50,21 @@ jobs:
               `;
               
               try {
-                // If PROJECT_ID is a number, use it as project number
-                if (/^\d+$/.test(PROJECT_ID)) {
-                  const result = await github.graphql(query, {
-                    org: context.repo.owner,
-                    projectNumber: parseInt(PROJECT_ID)
-                  });
-                  return result.organization.projectV2;
-                }
+                console.log(`Looking for organization project ${PROJECT_NUMBER} in ${context.repo.owner}`);
+                const result = await github.graphql(orgQuery, {
+                  org: context.repo.owner,
+                  projectNumber: PROJECT_NUMBER
+                });
+                console.log(`✅ Found organization project: ${result.organization.projectV2.id}`);
+                return result.organization.projectV2;
+              } catch (orgError) {
+                console.log('Organization project not found, trying repository project...');
                 
-                // Otherwise try as global ID
-                query = `
-                  query($projectId: ID!) {
-                    node(id: $projectId) {
-                      ... on ProjectV2 {
+                // Try repository-level project as fallback
+                const repoQuery = `
+                  query($owner: String!, $repo: String!, $projectNumber: Int!) {
+                    repository(owner: $owner, name: $repo) {
+                      projectV2(number: $projectNumber) {
                         id
                         fields(first: 20) {
                           nodes {
@@ -86,54 +87,21 @@ jobs:
                   }
                 `;
                 
-                const result = await github.graphql(query, {
-                  projectId: PROJECT_ID
-                });
-                return result.node;
-              } catch (error) {
-                console.log('Error fetching project info:', error);
-                
-                // Try repository-level project as fallback
                 try {
-                  query = `
-                    query($owner: String!, $repo: String!, $projectNumber: Int!) {
-                      repository(owner: $owner, name: $repo) {
-                        projectV2(number: $projectNumber) {
-                          id
-                          fields(first: 20) {
-                            nodes {
-                              ... on ProjectV2Field {
-                                id
-                                name
-                              }
-                              ... on ProjectV2SingleSelectField {
-                                id
-                                name
-                                options {
-                                  id
-                                  name
-                                }
-                              }
-                            }
-                          }
-                        }
-                      }
-                    }
-                  `;
-                  
-                  if (/^\d+$/.test(PROJECT_ID)) {
-                    const result = await github.graphql(query, {
-                      owner: context.repo.owner,
-                      repo: context.repo.repo,
-                      projectNumber: parseInt(PROJECT_ID)
-                    });
-                    return result.repository.projectV2;
-                  }
-                } catch (fallbackError) {
-                  console.log('Repository project fallback failed:', fallbackError);
+                  console.log(`Looking for repository project ${PROJECT_NUMBER} in ${context.repo.owner}/${context.repo.repo}`);
+                  const result = await github.graphql(repoQuery, {
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    projectNumber: PROJECT_NUMBER
+                  });
+                  console.log(`✅ Found repository project: ${result.repository.projectV2.id}`);
+                  return result.repository.projectV2;
+                } catch (repoError) {
+                  console.log('❌ No project found at organization or repository level');
+                  console.log('Organization error:', orgError.message);
+                  console.log('Repository error:', repoError.message);
+                  return null;
                 }
-                
-                return null;
               }
             }
             
